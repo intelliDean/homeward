@@ -1,0 +1,22 @@
+{
+  "name": "homeward-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Homeward canonical ETH migration protocol from Arbitrum Nova to Arbitrum One",
+  "scripts": {
+    "deploy:testnet": "npx tsx scripts/deploy-testnet.ts",
+    "worker:dev": "npm --prefix worker run dev",
+    "worker:start": "npm --prefix worker start",
+    "frontend:dev": "npm --prefix frontend run dev",
+    "cli": "npx --prefix cli tsx src/index.ts",
+    "test:contracts": "forge test --root contracts",
+    "test:worker": "npm --prefix worker test",
+    "test": "forge test --root contracts && npm --prefix worker test"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
