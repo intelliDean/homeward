@@ -5,10 +5,11 @@
   "description": "Homeward canonical ETH migration protocol from Arbitrum Nova to Arbitrum One",
   "scripts": {
     "deploy:testnet": "npx tsx scripts/deploy-testnet.ts",
+    "migration:test": "npx tsx scripts/test-migration.ts",
     "worker:dev": "npm --prefix worker run dev",
     "worker:start": "npm --prefix worker start",
     "frontend:dev": "npm --prefix frontend run dev",
-    "cli": "npx --prefix cli tsx src/index.ts",
+    "cli": "npx tsx cli/src/index.ts",
     "test:contracts": "forge test --root contracts",
     "test:worker": "npm --prefix worker test",
     "test": "forge test --root contracts && npm --prefix worker test"
