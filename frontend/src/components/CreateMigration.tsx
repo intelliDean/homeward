@@ -6,25 +6,7 @@ import { parseEther, formatEther, isAddress } from "viem";
 import { ArrowRight, ShieldCheck, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { arbitrumNova, arbitrumSepolia } from "wagmi/chains";
 
-const NOVA_ENTRY_ADDRESS = (process.env.NEXT_PUBLIC_NOVA_ENTRY_CONTRACT || "0x0000000000000000000000000000000000000000") as `0x${string}`;
-
-const NovaEntryAbi = [
-  {
-    type: "function",
-    name: "createMigration",
-    inputs: [
-      { name: "beneficiary", type: "address" },
-      { name: "maxDeductions", type: "uint256" },
-      { name: "executorReward", type: "uint256" },
-      { name: "minDeliveryThreshold", type: "uint256" },
-    ],
-    outputs: [
-      { name: "jobId", type: "bytes32" },
-      { name: "messagePosition", type: "uint256" },
-    ],
-    stateMutability: "payable",
-  },
-] as const;
+import { NOVA_ENTRY_ADDRESS, NovaEntryAbi } from "../config/contracts";
 
 interface CreateMigrationProps {
   onMigrationCreated: (jobId: string) => void;

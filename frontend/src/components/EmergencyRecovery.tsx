@@ -5,36 +5,7 @@ import { useAccount, useWriteContract, useSwitchChain } from "wagmi";
 import { ShieldAlert, AlertTriangle, ArrowRight, CheckCircle2, RefreshCw } from "lucide-react";
 import { sepolia, mainnet } from "wagmi/chains";
 
-const ETH_ROUTER_ADDRESS = (process.env.NEXT_PUBLIC_ETH_COMPLETION_ROUTER || "0x0000000000000000000000000000000000000000") as `0x${string}`;
-
-const EthRouterAbi = [
-  {
-    type: "function",
-    name: "emergencyWithdraw",
-    inputs: [{ name: "jobId", type: "bytes32" }],
-    outputs: [],
-    stateMutability: "nonpayable",
-  },
-  {
-    type: "function",
-    name: "forwardJob",
-    inputs: [
-      { name: "jobId", type: "bytes32" },
-      {
-        name: "gasParams",
-        type: "tuple",
-        components: [
-          { name: "maxSubmissionCost", type: "uint256" },
-          { name: "gasLimit", type: "uint256" },
-          { name: "maxFeePerGas", type: "uint256" },
-        ],
-      },
-      { name: "workerReimbursement", type: "uint256" },
-    ],
-    outputs: [{ name: "ticketId", type: "uint256" }],
-    stateMutability: "nonpayable",
-  },
-] as const;
+import { ETH_ROUTER_ADDRESS, EthRouterAbi } from "../config/contracts";
 
 export function EmergencyRecovery() {
   const { isConnected, chain } = useAccount();
