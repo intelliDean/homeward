@@ -107,12 +107,7 @@ contract EthCompletionRouter is ReentrancyGuard {
         uint256 executorReward,
         uint256 minDeliveryThreshold
     ) external payable nonReentrant {
-        if (msg.sender != novaOutbox) revert OnlyNovaOutbox();
-
-        address l2Sender = IOutbox(novaOutbox).l2ToL1Sender();
-        if (l2Sender != novaEntryContract) {
-            revert UnauthorizedL2Sender(l2Sender, novaEntryContract);
-        }
+        _verifyNovaOutboxCaller();
 
         if (jobs[jobId].status != JobStatus.None) revert JobAlreadyExists(jobId);
 
@@ -150,23 +145,8 @@ contract EthCompletionRouter is ReentrancyGuard {
         Job storage job = jobs[jobId];
         if (job.status != JobStatus.Received) revert JobNotReceived(jobId);
 
-        uint256 retryableGasCost = gasParams.maxSubmissionCost + (gasParams.gasLimit * gasParams.maxFeePerGas);
-        uint256 totalWorkerReward = workerReimbursement + job.executorReward;
-        uint256 totalDeductions = totalWorkerReward + retryableGasCost;
-
-        if (totalDeductions > job.maxDeductions) {
-            emit JobOverBudget(jobId, totalDeductions, job.maxDeductions);
-            revert ExceedsMaxDeductions(totalDeductions, job.maxDeductions);
-        }
-
-        if (totalDeductions >= job.principalAmount) {
-            revert ExceedsMaxDeductions(totalDeductions, job.principalAmount);
-        }
-
-        uint256 netDeliveryAmount = job.principalAmount - totalDeductions;
-        if (netDeliveryAmount < job.minDeliveryThreshold) {
-            revert BelowMinDeliveryThreshold(netDeliveryAmount, job.minDeliveryThreshold);
-        }
+        (uint256 retryableGasCost, uint256 totalWorkerReward, uint256 netDeliveryAmount) =
+            _validateAndCalculateDeductions(jobId, job, gasParams, workerReimbursement);
 
         address beneficiary = job.beneficiary;
 
@@ -175,23 +155,10 @@ contract EthCompletionRouter is ReentrancyGuard {
         jobBalances[jobId] = 0;
 
         // 1. Reimburses the executor worker
-        if (totalWorkerReward > 0) {
-            (bool success,) = payable(msg.sender).call{value: totalWorkerReward}("");
-            if (!success) revert WorkerCompensationFailed();
-        }
+        _compensateWorker(payable(msg.sender), totalWorkerReward);
 
         // 2. Dispatches retryable ticket to Arbitrum One Inbox
-        // SECURITY CRITICAL: Both excessFeeRefundAddress and callValueRefundAddress MUST be beneficiary!
-        ticketId = IInbox(arbOneInbox).createRetryableTicket{value: retryableGasCost + netDeliveryAmount}(
-            beneficiary, // destination on Arb One
-            netDeliveryAmount, // l2CallValue
-            gasParams.maxSubmissionCost,
-            beneficiary, // excessFeeRefundAddress (ALWAYS beneficiary)
-            beneficiary, // callValueRefundAddress (ALWAYS beneficiary)
-            gasParams.gasLimit,
-            gasParams.maxFeePerGas,
-            "" // empty calldata for direct ETH transfer
-        );
+        ticketId = _dispatchRetryableTicket(beneficiary, netDeliveryAmount, retryableGasCost, gasParams);
 
         emit JobForwarded(
             jobId, msg.sender, beneficiary, netDeliveryAmount, totalWorkerReward, retryableGasCost, ticketId
@@ -206,14 +173,7 @@ contract EthCompletionRouter is ReentrancyGuard {
         Job storage job = jobs[jobId];
         if (job.status != JobStatus.Received) revert JobNotReceived(jobId);
 
-        uint256 unlockTime = job.receivedTimestamp + EMERGENCY_DELAY;
-        if (block.timestamp < unlockTime) {
-            revert EmergencyDelayNotMet(block.timestamp, unlockTime);
-        }
-
-        if (msg.sender != job.beneficiary && msg.sender != job.depositor) {
-            revert OnlyBeneficiaryOrDepositor();
-        }
+        _validateEmergencyWithdrawal(job);
 
         uint256 amount = jobBalances[jobId];
         job.status = JobStatus.EmergencyClaimed;
@@ -223,5 +183,91 @@ contract EthCompletionRouter is ReentrancyGuard {
         if (!sent) revert TransferFailed();
 
         emit EmergencyWithdrawalExecuted(jobId, msg.sender, amount);
+    }
+
+    /**
+     * @dev Validates that the caller is the canonical Nova Outbox and the L2 sender matches.
+     */
+    function _verifyNovaOutboxCaller() internal view {
+        if (msg.sender != novaOutbox) revert OnlyNovaOutbox();
+
+        address l2Sender = IOutbox(novaOutbox).l2ToL1Sender();
+        if (l2Sender != novaEntryContract) {
+            revert UnauthorizedL2Sender(l2Sender, novaEntryContract);
+        }
+    }
+
+    /**
+     * @dev Validates gas costs against signed caps and calculates distribution amounts.
+     */
+    function _validateAndCalculateDeductions(
+        bytes32 jobId,
+        Job storage job,
+        RetryableGasParams calldata gasParams,
+        uint256 workerReimbursement
+    ) internal returns (uint256 retryableGasCost, uint256 totalWorkerReward, uint256 netDeliveryAmount) {
+        retryableGasCost = gasParams.maxSubmissionCost + (gasParams.gasLimit * gasParams.maxFeePerGas);
+        totalWorkerReward = workerReimbursement + job.executorReward;
+        uint256 totalDeductions = totalWorkerReward + retryableGasCost;
+
+        if (totalDeductions > job.maxDeductions) {
+            emit JobOverBudget(jobId, totalDeductions, job.maxDeductions);
+            revert ExceedsMaxDeductions(totalDeductions, job.maxDeductions);
+        }
+
+        if (totalDeductions >= job.principalAmount) {
+            revert ExceedsMaxDeductions(totalDeductions, job.principalAmount);
+        }
+
+        netDeliveryAmount = job.principalAmount - totalDeductions;
+        if (netDeliveryAmount < job.minDeliveryThreshold) {
+            revert BelowMinDeliveryThreshold(netDeliveryAmount, job.minDeliveryThreshold);
+        }
+    }
+
+    /**
+     * @dev Sends worker compensation safely via low-level call.
+     */
+    function _compensateWorker(address payable worker, uint256 reward) internal {
+        if (reward > 0) {
+            (bool success,) = worker.call{value: reward}("");
+            if (!success) revert WorkerCompensationFailed();
+        }
+    }
+
+    /**
+     * @dev Dispatches the retryable ticket to the canonical Arbitrum One inbox.
+     */
+    function _dispatchRetryableTicket(
+        address beneficiary,
+        uint256 netDeliveryAmount,
+        uint256 retryableGasCost,
+        RetryableGasParams calldata gasParams
+    ) internal returns (uint256 ticketId) {
+        // SECURITY CRITICAL: Both excessFeeRefundAddress and callValueRefundAddress MUST be beneficiary!
+        ticketId = IInbox(arbOneInbox).createRetryableTicket{value: retryableGasCost + netDeliveryAmount}(
+            beneficiary,
+            netDeliveryAmount,
+            gasParams.maxSubmissionCost,
+            beneficiary,
+            beneficiary,
+            gasParams.gasLimit,
+            gasParams.maxFeePerGas,
+            ""
+        );
+    }
+
+    /**
+     * @dev Validates delay expiration and caller permissions for emergency withdrawal.
+     */
+    function _validateEmergencyWithdrawal(Job storage job) internal view {
+        uint256 unlockTime = job.receivedTimestamp + EMERGENCY_DELAY;
+        if (block.timestamp < unlockTime) {
+            revert EmergencyDelayNotMet(block.timestamp, unlockTime);
+        }
+
+        if (msg.sender != job.beneficiary && msg.sender != job.depositor) {
+            revert OnlyBeneficiaryOrDepositor();
+        }
     }
 }

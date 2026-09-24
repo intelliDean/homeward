@@ -76,30 +76,13 @@ contract NovaEntryContract is ReentrancyGuard {
         uint256 executorReward,
         uint256 minDeliveryThreshold
     ) external payable nonReentrant returns (bytes32 jobId, uint256 messagePosition) {
-        if (beneficiary == address(0)) revert InvalidBeneficiary();
-        if (minDeliveryThreshold == 0) revert ZeroDeliveryThreshold();
-        if (executorReward > maxDeductions) revert InvalidDeductionCaps(maxDeductions, executorReward);
-
-        uint256 requiredMinimum = maxDeductions + minDeliveryThreshold;
-        if (msg.value < requiredMinimum) {
-            revert InsufficientDeposit(msg.value, requiredMinimum);
-        }
+        _validateCreationParams(beneficiary, maxDeductions, executorReward, minDeliveryThreshold, msg.value);
 
         uint256 nonce = userNonces[msg.sender]++;
-        jobId = keccak256(
-            abi.encode(block.chainid, address(this), msg.sender, beneficiary, msg.value, nonce, block.timestamp)
-        );
+        jobId = _generateJobId(msg.sender, beneficiary, msg.value, nonce);
 
-        // Standard abi.encode (NOT abi.encodePacked) to prevent hash collision vulnerabilities
-        bytes memory payload = abi.encodeWithSignature(
-            "receiveFromNova(bytes32,address,address,uint256,uint256,uint256)",
-            jobId,
-            msg.sender,
-            beneficiary,
-            maxDeductions,
-            executorReward,
-            minDeliveryThreshold
-        );
+        bytes memory payload =
+            _buildReceivePayload(jobId, msg.sender, beneficiary, maxDeductions, executorReward, minDeliveryThreshold);
 
         // Initiate canonical bridge withdrawal to L1
         messagePosition = IArbSys(arbSys).sendTxToL1{value: msg.value}(ethCompletionRouter, payload);
@@ -126,6 +109,60 @@ contract NovaEntryContract is ReentrancyGuard {
             executorReward,
             minDeliveryThreshold,
             block.timestamp
+        );
+    }
+
+    /**
+     * @dev Validates input parameters and deposit sufficiency for a new migration.
+     */
+    function _validateCreationParams(
+        address beneficiary,
+        uint256 maxDeductions,
+        uint256 executorReward,
+        uint256 minDeliveryThreshold,
+        uint256 deposit
+    ) internal pure {
+        if (beneficiary == address(0)) revert InvalidBeneficiary();
+        if (minDeliveryThreshold == 0) revert ZeroDeliveryThreshold();
+        if (executorReward > maxDeductions) revert InvalidDeductionCaps(maxDeductions, executorReward);
+
+        uint256 requiredMinimum = maxDeductions + minDeliveryThreshold;
+        if (deposit < requiredMinimum) {
+            revert InsufficientDeposit(deposit, requiredMinimum);
+        }
+    }
+
+    /**
+     * @dev Generates a globally unique 32-byte identifier for the migration job.
+     */
+    function _generateJobId(address depositor, address beneficiary, uint256 amount, uint256 nonce)
+        internal
+        view
+        returns (bytes32)
+    {
+        return
+            keccak256(abi.encode(block.chainid, address(this), depositor, beneficiary, amount, nonce, block.timestamp));
+    }
+
+    /**
+     * @dev Builds the receiveFromNova ABI call payload for the L1 completion router.
+     */
+    function _buildReceivePayload(
+        bytes32 jobId,
+        address depositor,
+        address beneficiary,
+        uint256 maxDeductions,
+        uint256 executorReward,
+        uint256 minDeliveryThreshold
+    ) internal pure returns (bytes memory) {
+        return abi.encodeWithSignature(
+            "receiveFromNova(bytes32,address,address,uint256,uint256,uint256)",
+            jobId,
+            depositor,
+            beneficiary,
+            maxDeductions,
+            executorReward,
+            minDeliveryThreshold
         );
     }
 }
