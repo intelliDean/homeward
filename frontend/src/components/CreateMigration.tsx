@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useBalance, useSwitchChain } from "wagmi";
-import { parseEther, formatEther, isAddress, keccak256, toHex } from "viem";
+import { parseEther, formatEther, isAddress } from "viem";
 import { ArrowRight, ShieldCheck, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { arbitrumNova, arbitrumSepolia } from "wagmi/chains";
 
@@ -97,9 +97,7 @@ export function CreateMigration({ onMigrationCreated }: CreateMigrationProps) {
 
   useEffect(() => {
     if (isMined && txHash) {
-      // Calculate or use txHash as job tracking reference
-      const mockJobId = keccak256(toHex(txHash));
-      setCreatedJobId(mockJobId);
+      setCreatedJobId(txHash);
     }
   }, [isMined, txHash]);
 
