@@ -1,0 +1,25 @@
+{
+  "name": "homeward-cli",
+  "version": "0.1.0",
+  "description": "Homeward Self-Service Recovery and Inspection CLI",
+  "bin": {
+    "homeward": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "homeward": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@arbitrum/sdk": "^4.0.0",
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.5",
+    "ora": "^8.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
