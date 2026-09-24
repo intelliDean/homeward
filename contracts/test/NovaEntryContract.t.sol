@@ -38,12 +38,8 @@ contract NovaEntryContractTest is Test {
         uint256 minDelivery = 0.9 ether;
 
         vm.prank(user);
-        (bytes32 jobId, uint256 position) = entryContract.createMigration{value: deposit}(
-            beneficiary,
-            maxDeductions,
-            executorReward,
-            minDelivery
-        );
+        (bytes32 jobId, uint256 position) =
+            entryContract.createMigration{value: deposit}(beneficiary, maxDeductions, executorReward, minDelivery);
 
         assertEq(position, 1);
         assertTrue(jobId != bytes32(0));
@@ -78,34 +74,18 @@ contract NovaEntryContractTest is Test {
     function test_RevertIf_ZeroBeneficiary() public {
         vm.prank(user);
         vm.expectRevert(NovaEntryContract.InvalidBeneficiary.selector);
-        entryContract.createMigration{value: 1 ether}(
-            address(0),
-            0.05 ether,
-            0.01 ether,
-            0.9 ether
-        );
+        entryContract.createMigration{value: 1 ether}(address(0), 0.05 ether, 0.01 ether, 0.9 ether);
     }
 
     function test_RevertIf_ZeroMinDelivery() public {
         vm.prank(user);
         vm.expectRevert(NovaEntryContract.ZeroDeliveryThreshold.selector);
-        entryContract.createMigration{value: 1 ether}(
-            beneficiary,
-            0.05 ether,
-            0.01 ether,
-            0
-        );
+        entryContract.createMigration{value: 1 ether}(beneficiary, 0.05 ether, 0.01 ether, 0);
     }
 
     function test_RevertIf_RewardExceedsMaxDeductions() public {
         vm.prank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                NovaEntryContract.InvalidDeductionCaps.selector,
-                0.01 ether,
-                0.02 ether
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(NovaEntryContract.InvalidDeductionCaps.selector, 0.01 ether, 0.02 ether));
         entryContract.createMigration{value: 1 ether}(
             beneficiary,
             0.01 ether, // maxDeductions
@@ -116,13 +96,7 @@ contract NovaEntryContractTest is Test {
 
     function test_RevertIf_InsufficientDeposit() public {
         vm.prank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                NovaEntryContract.InsufficientDeposit.selector,
-                0.5 ether,
-                1 ether
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(NovaEntryContract.InsufficientDeposit.selector, 0.5 ether, 1 ether));
         entryContract.createMigration{value: 0.5 ether}(
             beneficiary,
             0.1 ether,
@@ -144,12 +118,8 @@ contract NovaEntryContractTest is Test {
 
         vm.deal(user, deposit);
         vm.prank(user);
-        (bytes32 jobId, uint256 position) = entryContract.createMigration{value: deposit}(
-            beneficiary,
-            maxDeductions,
-            executorReward,
-            minDelivery
-        );
+        (bytes32 jobId, uint256 position) =
+            entryContract.createMigration{value: deposit}(beneficiary, maxDeductions, executorReward, minDelivery);
 
         assertTrue(position > 0);
         assertTrue(jobId != bytes32(0));

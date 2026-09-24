@@ -74,17 +74,9 @@ contract EthCompletionRouter is ReentrancyGuard {
         uint256 ticketId
     );
 
-    event JobOverBudget(
-        bytes32 indexed jobId,
-        uint256 totalRequiredDeductions,
-        uint256 maxAllowedDeductions
-    );
+    event JobOverBudget(bytes32 indexed jobId, uint256 totalRequiredDeductions, uint256 maxAllowedDeductions);
 
-    event EmergencyWithdrawalExecuted(
-        bytes32 indexed jobId,
-        address indexed recipient,
-        uint256 amount
-    );
+    event EmergencyWithdrawalExecuted(bytes32 indexed jobId, address indexed recipient, uint256 amount);
 
     error OnlyNovaOutbox();
     error UnauthorizedL2Sender(address actual, address expected);
@@ -97,11 +89,7 @@ contract EthCompletionRouter is ReentrancyGuard {
     error OnlyBeneficiaryOrDepositor();
     error TransferFailed();
 
-    constructor(
-        address _novaOutbox,
-        address _novaEntryContract,
-        address _arbOneInbox
-    ) {
+    constructor(address _novaOutbox, address _novaEntryContract, address _arbOneInbox) {
         novaOutbox = _novaOutbox;
         novaEntryContract = _novaEntryContract;
         arbOneInbox = _arbOneInbox;
@@ -142,13 +130,7 @@ contract EthCompletionRouter is ReentrancyGuard {
         jobBalances[jobId] = msg.value;
 
         emit JobReceivedFromNova(
-            jobId,
-            depositor,
-            beneficiary,
-            msg.value,
-            maxDeductions,
-            executorReward,
-            minDeliveryThreshold
+            jobId, depositor, beneficiary, msg.value, maxDeductions, executorReward, minDeliveryThreshold
         );
     }
 
@@ -160,11 +142,11 @@ contract EthCompletionRouter is ReentrancyGuard {
      * @param gasParams Struct containing maxSubmissionCost, gasLimit, and maxFeePerGas
      * @param workerReimbursement Gas reimbursement claimed by worker for L1 execution
      */
-    function forwardJob(
-        bytes32 jobId,
-        RetryableGasParams calldata gasParams,
-        uint256 workerReimbursement
-    ) external nonReentrant returns (uint256 ticketId) {
+    function forwardJob(bytes32 jobId, RetryableGasParams calldata gasParams, uint256 workerReimbursement)
+        external
+        nonReentrant
+        returns (uint256 ticketId)
+    {
         Job storage job = jobs[jobId];
         if (job.status != JobStatus.Received) revert JobNotReceived(jobId);
 
@@ -194,7 +176,7 @@ contract EthCompletionRouter is ReentrancyGuard {
 
         // 1. Reimburses the executor worker
         if (totalWorkerReward > 0) {
-            (bool success, ) = payable(msg.sender).call{value: totalWorkerReward}("");
+            (bool success,) = payable(msg.sender).call{value: totalWorkerReward}("");
             if (!success) revert WorkerCompensationFailed();
         }
 
@@ -212,13 +194,7 @@ contract EthCompletionRouter is ReentrancyGuard {
         );
 
         emit JobForwarded(
-            jobId,
-            msg.sender,
-            beneficiary,
-            netDeliveryAmount,
-            totalWorkerReward,
-            retryableGasCost,
-            ticketId
+            jobId, msg.sender, beneficiary, netDeliveryAmount, totalWorkerReward, retryableGasCost, ticketId
         );
     }
 
@@ -243,7 +219,7 @@ contract EthCompletionRouter is ReentrancyGuard {
         job.status = JobStatus.EmergencyClaimed;
         jobBalances[jobId] = 0;
 
-        (bool sent, ) = payable(msg.sender).call{value: amount}("");
+        (bool sent,) = payable(msg.sender).call{value: amount}("");
         if (!sent) revert TransferFailed();
 
         emit EmergencyWithdrawalExecuted(jobId, msg.sender, amount);

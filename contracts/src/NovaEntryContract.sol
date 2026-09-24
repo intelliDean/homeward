@@ -87,15 +87,7 @@ contract NovaEntryContract is ReentrancyGuard {
 
         uint256 nonce = userNonces[msg.sender]++;
         jobId = keccak256(
-            abi.encode(
-                block.chainid,
-                address(this),
-                msg.sender,
-                beneficiary,
-                msg.value,
-                nonce,
-                block.timestamp
-            )
+            abi.encode(block.chainid, address(this), msg.sender, beneficiary, msg.value, nonce, block.timestamp)
         );
 
         // Standard abi.encode (NOT abi.encodePacked) to prevent hash collision vulnerabilities
@@ -110,10 +102,7 @@ contract NovaEntryContract is ReentrancyGuard {
         );
 
         // Initiate canonical bridge withdrawal to L1
-        messagePosition = IArbSys(arbSys).sendTxToL1{value: msg.value}(
-            ethCompletionRouter,
-            payload
-        );
+        messagePosition = IArbSys(arbSys).sendTxToL1{value: msg.value}(ethCompletionRouter, payload);
 
         jobs[jobId] = MigrationJob({
             jobId: jobId,

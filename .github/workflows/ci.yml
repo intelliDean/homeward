@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Contracts (Foundry)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Check Formatting
+        run: forge fmt --check --root contracts
+
+      - name: Build Contracts
+        run: forge build --root contracts --sizes
+
+      - name: Run Unit, Fuzz & Invariant Tests
+        run: forge test --root contracts -vvv
+
+  worker:
+    name: Worker Service (Vitest & TSC)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      - name: Install dependencies
+        run: npm --prefix worker ci
+
+      - name: Typecheck & Build
+        run: npm --prefix worker run build
+
+      - name: Run Vitest Unit Tests
+        run: npm --prefix worker test
+
+  cli:
+    name: Recovery CLI (TSC)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+
+      - name: Install dependencies
+        run: npm --prefix cli ci
+
+      - name: Typecheck & Build
+        run: npm --prefix cli run build
+
+  frontend:
+    name: Web Frontend (Next.js & ESLint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm --prefix frontend ci
+
+      - name: Build Next.js Web App
+        run: npm --prefix frontend run build
+        env:
+          NEXT_PUBLIC_NOVA_ENTRY_CONTRACT: "0xcF7AC4DAfF8D8050362EaC01DcF1155797b99125"
+          NEXT_PUBLIC_ETH_COMPLETION_ROUTER: "0xD062BB3F53A50f1372fEC398A5daad6DdDF06fee"
+          NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: "mock-wc-id"
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/homeward"

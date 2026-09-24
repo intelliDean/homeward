@@ -13,11 +13,7 @@ contract DeployEthCompletionRouter is Script {
         address arbOneInbox = vm.envAddress("ARB_ONE_INBOX_ADDRESS");
 
         vm.startBroadcast(deployerPrivateKey);
-        EthCompletionRouter router = new EthCompletionRouter(
-            novaOutbox,
-            novaEntry,
-            arbOneInbox
-        );
+        EthCompletionRouter router = new EthCompletionRouter(novaOutbox, novaEntry, arbOneInbox);
         vm.stopBroadcast();
 
         console2.log("EthCompletionRouter deployed at:", address(router));
@@ -32,10 +28,7 @@ contract DeployNovaEntryContract is Script {
         address arbSys = vm.envOr("ARB_SYS_ADDRESS", address(0x0000000000000000000000000000000000000064));
 
         vm.startBroadcast(deployerPrivateKey);
-        NovaEntryContract entry = new NovaEntryContract(
-            ethCompletionRouter,
-            arbSys
-        );
+        NovaEntryContract entry = new NovaEntryContract(ethCompletionRouter, arbSys);
         vm.stopBroadcast();
 
         console2.log("NovaEntryContract deployed at:", address(entry));

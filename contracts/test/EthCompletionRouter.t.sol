@@ -22,11 +22,7 @@ contract EthCompletionRouterTest is Test {
     function setUp() public {
         mockOutbox = new MockOutbox();
         mockInbox = new MockInbox();
-        router = new EthCompletionRouter(
-            address(mockOutbox),
-            novaEntry,
-            address(mockInbox)
-        );
+        router = new EthCompletionRouter(address(mockOutbox), novaEntry, address(mockInbox));
 
         mockOutbox.setL2ToL1Sender(novaEntry);
         vm.deal(address(mockOutbox), 100 ether);
@@ -34,15 +30,12 @@ contract EthCompletionRouterTest is Test {
         vm.deal(randomUser, 10 ether);
     }
 
-    function _receiveSampleJob(uint256 principal, uint256 maxDeductions, uint256 executorReward, uint256 minDelivery) internal {
+    function _receiveSampleJob(uint256 principal, uint256 maxDeductions, uint256 executorReward, uint256 minDelivery)
+        internal
+    {
         vm.prank(address(mockOutbox));
         router.receiveFromNova{value: principal}(
-            sampleJobId,
-            depositor,
-            beneficiary,
-            maxDeductions,
-            executorReward,
-            minDelivery
+            sampleJobId, depositor, beneficiary, maxDeductions, executorReward, minDelivery
         );
     }
 
@@ -79,14 +72,7 @@ contract EthCompletionRouterTest is Test {
     function test_RevertIf_ReceiveFromNova_NotOutbox() public {
         vm.prank(randomUser);
         vm.expectRevert(EthCompletionRouter.OnlyNovaOutbox.selector);
-        router.receiveFromNova{value: 1 ether}(
-            sampleJobId,
-            depositor,
-            beneficiary,
-            0.05 ether,
-            0.01 ether,
-            0.9 ether
-        );
+        router.receiveFromNova{value: 1 ether}(sampleJobId, depositor, beneficiary, 0.05 ether, 0.01 ether, 0.9 ether);
     }
 
     function test_RevertIf_ReceiveFromNova_UnauthorizedL2Sender() public {
@@ -94,20 +80,9 @@ contract EthCompletionRouterTest is Test {
 
         vm.prank(address(mockOutbox));
         vm.expectRevert(
-            abi.encodeWithSelector(
-                EthCompletionRouter.UnauthorizedL2Sender.selector,
-                randomUser,
-                novaEntry
-            )
+            abi.encodeWithSelector(EthCompletionRouter.UnauthorizedL2Sender.selector, randomUser, novaEntry)
         );
-        router.receiveFromNova{value: 1 ether}(
-            sampleJobId,
-            depositor,
-            beneficiary,
-            0.05 ether,
-            0.01 ether,
-            0.9 ether
-        );
+        router.receiveFromNova{value: 1 ether}(sampleJobId, depositor, beneficiary, 0.05 ether, 0.01 ether, 0.9 ether);
     }
 
     function test_ForwardJob_Success() public {
@@ -149,8 +124,7 @@ contract EthCompletionRouterTest is Test {
             address excessRefund,
             address callValueRefund,
             uint256 gasLimit,
-            uint256 maxFeePerGas,
-            ,
+            uint256 maxFeePerGas,,
             uint256 msgValue
         ) = mockInbox.lastTicket();
 
@@ -187,11 +161,7 @@ contract EthCompletionRouterTest is Test {
 
         vm.prank(worker);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                EthCompletionRouter.ExceedsMaxDeductions.selector,
-                0.05 ether,
-                0.03 ether
-            )
+            abi.encodeWithSelector(EthCompletionRouter.ExceedsMaxDeductions.selector, 0.05 ether, 0.03 ether)
         );
         router.forwardJob(sampleJobId, gasParams, workerReimbursement);
     }

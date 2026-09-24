@@ -15,12 +15,7 @@ contract RouterHandler is Test {
     bytes32[] public jobIds;
     uint256 public totalTrackedPrincipal;
 
-    constructor(
-        EthCompletionRouter _router,
-        MockOutbox _outbox,
-        MockInbox _inbox,
-        address _novaEntry
-    ) {
+    constructor(EthCompletionRouter _router, MockOutbox _outbox, MockInbox _inbox, address _novaEntry) {
         router = _router;
         outbox = _outbox;
         inbox = _inbox;
@@ -40,12 +35,7 @@ contract RouterHandler is Test {
         outbox.setL2ToL1Sender(novaEntry);
         vm.prank(address(outbox));
         router.receiveFromNova{value: amount}(
-            jobId,
-            address(0x1111),
-            address(0x2222),
-            maxDeductions,
-            reward,
-            minDelivery
+            jobId, address(0x1111), address(0x2222), maxDeductions, reward, minDelivery
         );
 
         totalTrackedPrincipal += amount;
@@ -56,14 +46,12 @@ contract RouterHandler is Test {
         jobIndex = jobIndex % jobIds.length;
         bytes32 jobId = jobIds[jobIndex];
 
-        (EthCompletionRouter.JobStatus status,,,uint256 principal, uint256 maxDeductions,,,) = router.jobs(jobId);
+        (EthCompletionRouter.JobStatus status,,, uint256 principal, uint256 maxDeductions,,,) = router.jobs(jobId);
         if (status != EthCompletionRouter.JobStatus.Received) return;
 
         gasPrice = bound(gasPrice, 1 gwei, 50 gwei);
         EthCompletionRouter.RetryableGasParams memory gasParams = EthCompletionRouter.RetryableGasParams({
-            maxSubmissionCost: 0.001 ether,
-            gasLimit: 50_000,
-            maxFeePerGas: gasPrice
+            maxSubmissionCost: 0.001 ether, gasLimit: 50_000, maxFeePerGas: gasPrice
         });
 
         uint256 retryableCost = gasParams.maxSubmissionCost + (gasParams.gasLimit * gasParams.maxFeePerGas);
@@ -92,11 +80,7 @@ contract RouterInvariantTest is Test {
     function setUp() public {
         outbox = new MockOutbox();
         inbox = new MockInbox();
-        router = new EthCompletionRouter(
-            address(outbox),
-            novaEntry,
-            address(inbox)
-        );
+        router = new EthCompletionRouter(address(outbox), novaEntry, address(inbox));
 
         handler = new RouterHandler(router, outbox, inbox, novaEntry);
 
