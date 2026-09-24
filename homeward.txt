@@ -1,0 +1,141 @@
+Homeward
+Project description
+Build Homeward, a self-service migration app for existing Arbitrum Nova ETH holders who want to move native ETH to Arbitrum One through the canonical Nova → Ethereum → One path.
+The user authorizes the migration once on Nova. After the canonical withdrawal becomes claimable, a worker advances the required Ethereum gas and completes the permitted forwarding steps. The worker is compensated from the amount the user explicitly authorized for completion.
+The goal is to remove the normal need for the user to separately acquire Ethereum gas and return later to manually complete the migration. The canonical withdrawal delay remains, and exceptional recovery may still require user action or additional gas.
+
+The MVP supports only:
+Native ETH.
+Nova → Ethereum → Arbitrum One.
+The same ordinary wallet address as beneficiary.
+New withdrawals initiated through Homeward.
+It does not support existing pending withdrawals, ERC-20/MOON migration, swaps, or fast liquidity.
+
+Core user flow
+User connects a Nova wallet and selects the ETH amount to migrate.
+Before signing, Homeward clearly shows:
+beneficiary address;
+migration route;
+maximum permitted deductions;
+executor reward;
+onward execution parameters;
+minimum amount intended for onward delivery.
+The source contract initiates the canonical Nova withdrawal and records a unique migration job.
+Homeward tracks the canonical finality/claim status.
+Once the withdrawal is executable, a worker:
+obtains the required proof;
+executes the canonical Ethereum-side claim;
+forwards the permitted ETH through the Arbitrum One Inbox;
+receives only the predetermined reward if the permitted forwarding succeeds.
+The application tracks the resulting retryable ticket through redemption or an actionable recovery state.
+Do not display “migration complete” merely because the Ethereum claim or retryable creation succeeded. Completion should mean the beneficiary has actually received the destination ETH.
+
+Components to build
+1. Nova entry contract
+Create and initiate migration jobs.
+Each job must permanently bind:
+source wallet;
+beneficiary;
+chain and route;
+unique nonce/job ID;
+migration amount;
+maximum authorized deductions;
+executor reward;
+approved onward execution settings.
+The executor must not be able to substitute the beneficiary, increase the approved deductions, or alter the signed route.
+
+2. Ethereum completion router
+Receive only authenticated funds/messages from the expected Nova canonical bridge path.
+Maintain isolated accounting per migration job.
+For each eligible job:
+verify that sufficient funds have arrived;
+enforce the user's authorized fee limits;
+construct the Arbitrum One retryable using the original beneficiary;
+use the beneficiary for the appropriate refund addresses;
+prevent duplicate forwarding or duplicate executor rewards.
+Do not introduce arbitrary-call functionality or an administrator-controlled sweep mechanism.
+
+3. TypeScript worker
+Build a restartable worker that:
+discovers pending Homeward jobs;
+monitors canonical withdrawal status;
+obtains proofs;
+submits eligible Ethereum claims;
+performs permitted forwarding;
+records transaction and retryable identifiers;
+monitors retryable redemption;
+safely handles already-claimed jobs;
+can be replaced by another worker without losing the job state.
+The worker advances transaction gas. It must not control or redirect the user's principal.
+
+4. Frontend
+Keep the product UI simple:
+Create migration.
+Review exact authorization.
+Track canonical withdrawal.
+Show Ethereum claim status.
+Show forwarding/retryable status.
+Show actual fees and executor reward.
+Confirm destination receipt.
+Present recovery instructions when normal execution cannot finish.
+Do not hide the canonical waiting period or present estimates as guaranteed completion times.
+
+5. Recovery CLI
+Provide a standalone command-line tool that can reconstruct a Homeward job from public onchain events and continue monitoring or permitted completion without depending on the hosted frontend.
+
+Important failure behavior
+If the migration cannot be completed within the user's authorized fee parameters:
+do not exceed the cap;
+do not deduct an arbitrary higher amount;
+preserve the user's attributable funds;
+expose the correct recovery path.
+A failed automatic retryable redemption does not mean the user's funds are lost, but recovery may require another transaction and additional gas.
+Homeward therefore promises a bounded, source-funded normal completion path with explicit recovery, not unconditional automatic delivery under every future gas or network condition.
+
+Security requirements
+The implementation must prevent:
+principal redirection;
+cross-user balance subsidy;
+replay/double execution;
+duplicate executor rewards;
+forged source jobs;
+altered beneficiaries;
+unauthorized fee changes;
+arbitrary destination calls;
+unauthorized fund sweeping.
+
+Test at minimum:
+two simultaneous users;
+duplicate execution attempts;
+already-claimed withdrawals;
+insufficient authorized fee budget;
+worker crash and replacement;
+stale fee estimates;
+RPC interruption;
+retryable auto-redemption failure;
+malicious/reverting payout recipient;
+reentrancy attempts;
+incorrect source sender or beneficiary.
+
+Definition of done
+The hackathon build is complete when the team can demonstrate the entire supported workflow on an appropriate public testnet analogue, clearly labelled as such:
+Nova-side authorization → canonical withdrawal → authenticated Ethereum completion → Arbitrum One retryable → actual beneficiary credit.
+
+Also demonstrate:
+exact executor compensation;
+an over-budget job remaining recoverable rather than overspending;
+two users remaining financially isolated;
+replay protection;
+a replacement worker completing an eligible job.
+
+Deliver:
+Solidity contracts;
+TypeScript worker;
+frontend;
+recovery CLI;
+automated tests;
+deployed testnet addresses;
+reproducible README;
+transaction evidence from the final demo.
+The hackathon build should remain testnet/experimental. Do not put substantial mainnet funds through Homeward without additional security review.
+
