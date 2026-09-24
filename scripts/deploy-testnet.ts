@@ -17,11 +17,11 @@ async function main() {
     process.exit(1);
   }
 
-  const l1Rpc = process.env.L1_RPC_URL || "https://rpc.sepolia.org";
+  const l1Rpc = process.env.L1_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com";
   const l2Rpc = process.env.ARB_SEPOLIA_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc";
 
-  const l1Provider = new ethers.JsonRpcProvider(l1Rpc);
-  const l2Provider = new ethers.JsonRpcProvider(l2Rpc);
+  const l1Provider = new ethers.JsonRpcProvider(l1Rpc, undefined, { staticNetwork: true });
+  const l2Provider = new ethers.JsonRpcProvider(l2Rpc, undefined, { staticNetwork: true });
 
   const l1Wallet = new ethers.Wallet(privateKey, l1Provider);
   const l2Wallet = new ethers.Wallet(privateKey, l2Provider);

@@ -22,7 +22,7 @@ async function main() {
     process.exit(1);
   }
 
-  const provider = new ethers.JsonRpcProvider(rpc);
+  const provider = new ethers.JsonRpcProvider(rpc, undefined, { staticNetwork: true });
   const wallet = new ethers.Wallet(privateKey, provider);
 
   console.log(`👤 Sender Wallet:    ${wallet.address}`);
