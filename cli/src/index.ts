@@ -22,9 +22,9 @@ const ARB_ONE_RPC = process.env.ARB_ONE_RPC_URL || "https://sepolia-rollup.arbit
 const NOVA_ENTRY = process.env.NOVA_ENTRY_CONTRACT || ethers.ZeroAddress;
 const ETH_ROUTER = process.env.ETH_COMPLETION_ROUTER || ethers.ZeroAddress;
 
-const novaProvider = new ethers.JsonRpcProvider(NOVA_RPC);
-const l1Provider = new ethers.JsonRpcProvider(L1_RPC);
-const arbOneProvider = new ethers.JsonRpcProvider(ARB_ONE_RPC);
+const novaProvider = new ethers.JsonRpcProvider(NOVA_RPC, undefined, { staticNetwork: true });
+const l1Provider = new ethers.JsonRpcProvider(L1_RPC, undefined, { staticNetwork: true });
+const arbOneProvider = new ethers.JsonRpcProvider(ARB_ONE_RPC, undefined, { staticNetwork: true });
 
 const NovaEntryAbi = [
   "function jobs(bytes32) external view returns (bytes32 jobId, address depositor, address beneficiary, uint256 amount, uint256 maxDeductions, uint256 executorReward, uint256 minDeliveryThreshold, uint256 messagePosition, uint256 createdAt)",
