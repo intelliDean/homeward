@@ -1,0 +1,19 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.24"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+
+remappings = [
+    "@openzeppelin/=lib/openzeppelin-contracts/",
+    "forge-std/=lib/forge-std/src/"
+]
+
+[rpc_endpoints]
+ethereum_sepolia = "${SEPOLIA_RPC_URL:-https://rpc.sepolia.org}"
+arbitrum_sepolia = "${ARB_SEPOLIA_RPC_URL:-https://sepolia-rollup.arbitrum.io/rpc}"
+arbitrum_nova = "${NOVA_RPC_URL:-https://nova.arbitrum.io/rpc}"
+arbitrum_one = "${ONE_RPC_URL:-https://arb1.arbitrum.io/rpc}"
