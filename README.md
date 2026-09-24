@@ -161,3 +161,13 @@ Because Arbitrum Nova has no direct testnet, testing uses:
 - **Ethereum Sepolia** (Chain ID: `11155111`): Acts as Ethereum L1
 
 The Arbitrum bridge mechanics (`ArbSys`, `Outbox`, `Inbox`, `ChildToParentMessage`, `ParentToChildMessage`) are byte-for-byte identical between Nova and Arbitrum Sepolia.
+
+### 📍 Verified Live Testnet Contracts
+
+| Contract | Network | Address | Block Explorer |
+| :--- | :--- | :--- | :--- |
+| **`NovaEntryContract`** | Arbitrum Sepolia (L2) | `0xcF7AC4DAfF8D8050362EaC01DcF1155797b99125` | [Arbiscan](https://sepolia.arbiscan.io/address/0xcF7AC4DAfF8D8050362EaC01DcF1155797b99125) |
+| **`EthCompletionRouter`** | Ethereum Sepolia (L1) | `0xD062BB3F53A50f1372fEC398A5daad6DdDF06fee` | [Etherscan](https://sepolia.etherscan.io/address/0xD062BB3F53A50f1372fEC398A5daad6DdDF06fee) |
+| **`ArbSepolia Outbox`** | Ethereum Sepolia (L1) | `0x65f07C7D521164a4d5DaC6eB8Fac8DA067A3B78F` | [Etherscan](https://sepolia.etherscan.io/address/0x65f07C7D521164a4d5DaC6eB8Fac8DA067A3B78F) |
+| **`ArbSepolia Inbox`** | Ethereum Sepolia (L1) | `0xaAe29B0366299461418F5324a79Afc425BE5ae21` | [Etherscan](https://sepolia.etherscan.io/address/0xaAe29B0366299461418F5324a79Afc425BE5ae21) |
+
