@@ -139,9 +139,7 @@ contract MainnetForkTest is Test {
         // During Outbox execution on L1, outbox calls router.receiveFromNova
         vm.deal(MAINNET_NOVA_OUTBOX, 10 ether);
         vm.mockCall(
-            MAINNET_NOVA_OUTBOX,
-            abi.encodeWithSelector(IOutbox.l2ToL1Sender.selector),
-            abi.encode(simulatedL2Entry)
+            MAINNET_NOVA_OUTBOX, abi.encodeWithSelector(IOutbox.l2ToL1Sender.selector), abi.encode(simulatedL2Entry)
         );
 
         vm.prank(MAINNET_NOVA_OUTBOX);
@@ -174,9 +172,7 @@ contract MainnetForkTest is Test {
         // Verify state updates & worker compensation
         assertEq(router.jobBalances(jobId), 0, "Job balance must be 0 after forwarding");
         assertEq(
-            worker.balance - workerBalBefore,
-            0.015 ether,
-            "Worker must receive reimbursement plus executor reward"
+            worker.balance - workerBalBefore, 0.015 ether, "Worker must receive reimbursement plus executor reward"
         );
 
         (EthCompletionRouter.JobStatus status,,,,,,,) = router.jobs(jobId);
@@ -198,15 +194,11 @@ contract MainnetForkTest is Test {
 
         vm.deal(MAINNET_NOVA_OUTBOX, 10 ether);
         vm.mockCall(
-            MAINNET_NOVA_OUTBOX,
-            abi.encodeWithSelector(IOutbox.l2ToL1Sender.selector),
-            abi.encode(simulatedL2Entry)
+            MAINNET_NOVA_OUTBOX, abi.encodeWithSelector(IOutbox.l2ToL1Sender.selector), abi.encode(simulatedL2Entry)
         );
 
         vm.prank(MAINNET_NOVA_OUTBOX);
-        router.receiveFromNova{value: principal}(
-            jobId, depositor, beneficiary, 0.1 ether, 0.02 ether, 1.8 ether
-        );
+        router.receiveFromNova{value: principal}(jobId, depositor, beneficiary, 0.1 ether, 0.02 ether, 1.8 ether);
 
         // Attempt withdrawal before 14 days: should revert
         vm.warp(block.timestamp + 13 days);
@@ -242,9 +234,7 @@ contract MainnetForkTest is Test {
         vm.deal(depositor, 2 ether);
         vm.prank(depositor);
         vm.expectRevert(EthCompletionRouter.OnlyNovaOutbox.selector);
-        router.receiveFromNova{value: 1 ether}(
-            jobId, depositor, beneficiary, 0.05 ether, 0.01 ether, 0.9 ether
-        );
+        router.receiveFromNova{value: 1 ether}(jobId, depositor, beneficiary, 0.05 ether, 0.01 ether, 0.9 ether);
     }
 
     /**
@@ -261,18 +251,14 @@ contract MainnetForkTest is Test {
 
         vm.deal(MAINNET_NOVA_OUTBOX, 10 ether);
         vm.mockCall(
-            MAINNET_NOVA_OUTBOX,
-            abi.encodeWithSelector(IOutbox.l2ToL1Sender.selector),
-            abi.encode(rogueL2Contract)
+            MAINNET_NOVA_OUTBOX, abi.encodeWithSelector(IOutbox.l2ToL1Sender.selector), abi.encode(rogueL2Contract)
         );
 
         vm.prank(MAINNET_NOVA_OUTBOX);
         vm.expectRevert(
             abi.encodeWithSelector(EthCompletionRouter.UnauthorizedL2Sender.selector, rogueL2Contract, simulatedL2Entry)
         );
-        router.receiveFromNova{value: 1 ether}(
-            jobId, depositor, beneficiary, 0.05 ether, 0.01 ether, 0.9 ether
-        );
+        router.receiveFromNova{value: 1 ether}(jobId, depositor, beneficiary, 0.05 ether, 0.01 ether, 0.9 ether);
     }
 
     /**
@@ -292,9 +278,7 @@ contract MainnetForkTest is Test {
 
         vm.deal(MAINNET_NOVA_OUTBOX, 10 ether);
         vm.mockCall(
-            MAINNET_NOVA_OUTBOX,
-            abi.encodeWithSelector(IOutbox.l2ToL1Sender.selector),
-            abi.encode(simulatedL2Entry)
+            MAINNET_NOVA_OUTBOX, abi.encodeWithSelector(IOutbox.l2ToL1Sender.selector), abi.encode(simulatedL2Entry)
         );
 
         vm.prank(MAINNET_NOVA_OUTBOX);

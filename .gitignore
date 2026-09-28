@@ -42,4 +42,4 @@ lcov.info
 # Docker / Postgres local volume
 postgres_data/
 redis_data/
-homeward_demo.mp4
+demo

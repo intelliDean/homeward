@@ -8,7 +8,6 @@ function patchEthersProvider<T extends ethers.JsonRpcProvider>(provider: T): T {
     return {
       name: net.name,
       chainId: Number(net.chainId),
-      ensAddress: net.ensAddress,
       _isNetwork: true,
     } as any;
   };

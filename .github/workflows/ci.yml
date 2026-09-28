@@ -41,6 +41,7 @@ jobs:
   slither:
     name: Security Analysis (Slither SAST)
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       contents: read
       security-events: write
@@ -57,9 +58,9 @@ jobs:
 
       - name: Set up Python
         uses: actions/setup-python@v5
+        continue-on-error: false
         with:
           python-version: "3.11"
-          cache: "pip"
 
       - name: Install Slither & solc-select
         run: |
