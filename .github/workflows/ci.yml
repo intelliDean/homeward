@@ -34,6 +34,47 @@ jobs:
       - name: Run Unit, Fuzz & Invariant Tests
         run: forge test --root contracts -vvv
 
+  slither:
+    name: Security Analysis (Slither SAST)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Slither & solc-select
+        run: |
+          pip install slither-analyzer solc-select
+          solc-select install 0.8.24
+          solc-select use 0.8.24
+
+      - name: Run Slither Static Analysis
+        run: |
+          cd contracts
+          slither . --config-file slither.config.json --sarif ../slither.sarif
+
+      - name: Upload SARIF report
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: slither.sarif
+        continue-on-error: true
+
   worker:
     name: Worker Service (Vitest & TSC)
     runs-on: ubuntu-latest
