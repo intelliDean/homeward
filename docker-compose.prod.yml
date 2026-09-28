@@ -1,0 +1,91 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: homeward-prod-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgrespassword}
+      POSTGRES_DB: ${POSTGRES_DB:-homeward_production}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-homeward_production}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - homeward-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: homeward-prod-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_prod_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - homeward-network
+
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: homeward-prod-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - path: .env.production
+        required: false
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgrespassword@postgres:5432/homeward_production}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+    networks:
+      - homeward-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_NOVA_ENTRY_CONTRACT: ${NOVA_ENTRY_CONTRACT}
+        NEXT_PUBLIC_ETH_COMPLETION_ROUTER: ${ETH_COMPLETION_ROUTER}
+        NEXT_PUBLIC_MAINNET_NOVA_ENTRY_CONTRACT: ${MAINNET_NOVA_ENTRY_CONTRACT:-}
+        NEXT_PUBLIC_MAINNET_ETH_COMPLETION_ROUTER: ${MAINNET_ETH_COMPLETION_ROUTER:-}
+    container_name: homeward-prod-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - path: .env.production
+        required: false
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgrespassword@postgres:5432/homeward_production}
+    networks:
+      - homeward-network
+
+networks:
+  homeward-network:
+    driver: bridge
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:

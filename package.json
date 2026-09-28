@@ -11,6 +11,10 @@
     "worker:start": "npm --prefix worker start",
     "frontend:dev": "npm --prefix frontend run dev",
     "cli": "npx tsx cli/src/index.ts",
+    "docker:prod:build": "docker compose -f docker-compose.prod.yml build",
+    "docker:prod:up": "docker compose -f docker-compose.prod.yml up -d",
+    "docker:prod:down": "docker compose -f docker-compose.prod.yml down",
+    "docker:prod:logs": "docker compose -f docker-compose.prod.yml logs -f",
     "test:contracts": "forge test --root contracts",
     "test:worker": "npm --prefix worker test",
     "test": "forge test --root contracts && npm --prefix worker test"
