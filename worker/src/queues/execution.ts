@@ -9,6 +9,7 @@ import { migrationsTable, MigrationRecord } from "../db/schema.js";
 import { retryableQueue } from "./queueManager.js";
 import { logger } from "../logger.js";
 import { eq } from "drizzle-orm";
+import { notifyGasSpike, notifyJobForwarded } from "../alerts/notifier.js";
 
 export interface GasCalculationResult {
   gasParams: {
@@ -73,6 +74,12 @@ export async function processExecution(job: Job<{ jobId: string; outboxAlreadyCl
       })
       .where(eq(migrationsTable.jobId, jobId));
 
+    await notifyGasSpike({
+      jobId,
+      totalRequiredDeductions: ethers.formatEther(calc.totalDeductions),
+      maxAllowedDeductions: ethers.formatEther(calc.maxDeductions),
+    }).catch((err) => logger.warn({ err: err.message }, "Error sending gas spike alert"));
+
     // Delay and retry in 5 minutes
     await job.moveToDelayed(Date.now() + 300000, job.token);
     return;
@@ -103,6 +110,17 @@ export async function processExecution(job: Job<{ jobId: string; outboxAlreadyCl
     { jobId, ticketId },
     { jobId: `retryable-${jobId}` }
   );
+
+  const netDelivery = ethers.formatEther(BigInt(record.principalAmount) - calc.totalDeductions);
+  const workerReward = ethers.formatEther(calc.workerReimbursement + BigInt(record.executorReward));
+
+  await notifyJobForwarded({
+    jobId,
+    forwardTxHash: forwardReceipt.hash,
+    ticketId,
+    netDeliveryAmount: netDelivery,
+    workerReward,
+  }).catch((err) => logger.warn({ err: err.message }, "Error sending job forwarded alert"));
 
   logger.info({ jobId, ticketId, forwardTxHash: forwardReceipt.hash }, "Job successfully forwarded and retryable queued");
 }

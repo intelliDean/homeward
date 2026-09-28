@@ -7,6 +7,7 @@ import { migrationsTable } from "../db/schema.js";
 import { executionQueue } from "./queueManager.js";
 import { logger } from "../logger.js";
 import { eq } from "drizzle-orm";
+import { notifyChallengeMatured } from "../alerts/notifier.js";
 
 export async function processMonitoring(job: Job<{ jobId: string }>) {
   const { jobId } = job.data;
@@ -46,6 +47,12 @@ export async function processMonitoring(job: Job<{ jobId: string }>) {
 
   if (status === ChildToParentMessageStatus.CONFIRMED) {
     logger.info({ jobId }, "Challenge period passed! Ready for L1 Outbox claim");
+
+    await notifyChallengeMatured({
+      jobId,
+      beneficiary: record.beneficiary,
+      principalAmount: ethers.formatEther(record.principalAmount),
+    }).catch((err) => logger.warn({ err: err.message }, "Error sending challenge matured alert"));
 
     await db
       .update(migrationsTable)

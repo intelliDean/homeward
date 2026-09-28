@@ -26,6 +26,13 @@ const envSchema = z.object({
   DISCOVERY_POLL_INTERVAL_MS: z.coerce.number().default(15000),
   MONITORING_POLL_INTERVAL_MS: z.coerce.number().default(30000),
   MAX_ALLOWED_L1_GAS_GWEI: z.coerce.number().default(50),
+
+  // Alerting & Webhooks (Optional)
+  DISCORD_WEBHOOK_URL: z.string().optional(),
+  SLACK_WEBHOOK_URL: z.string().optional(),
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_CHAT_ID: z.string().optional(),
+  ALERT_WEBHOOK_URL: z.string().optional(),
 });
 
 export const config = envSchema.parse(process.env);

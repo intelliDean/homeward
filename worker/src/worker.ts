@@ -6,6 +6,7 @@ import { processExecution } from "./queues/execution.js";
 import { processRetryable } from "./queues/retryable.js";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
+import { notifyWorkerError } from "./alerts/notifier.js";
 
 export class HomewardWorkerService {
   private monitoringWorker!: Worker;
@@ -55,6 +56,11 @@ export class HomewardWorkerService {
     ] as const) {
       w.on("failed", (job, err) => {
         logger.error({ queue: name, jobId: job?.id, err: err.message }, "Job failed");
+        notifyWorkerError({
+          context: `${name} Queue`,
+          errorMessage: err.message,
+          jobId: job?.id,
+        }).catch((e) => logger.warn({ err: e.message }, "Error sending failure alert"));
       });
       w.on("completed", (job) => {
         logger.info({ queue: name, jobId: job?.id }, "Job completed successfully");
@@ -76,6 +82,10 @@ export class HomewardWorkerService {
       await processDiscovery();
     } catch (err: any) {
       logger.error({ err: err.message }, "Error during discovery scan tick");
+      await notifyWorkerError({
+        context: "Discovery Poller",
+        errorMessage: err.message,
+      }).catch((e) => logger.warn({ err: e.message }, "Error sending discovery error alert"));
     }
   }
 

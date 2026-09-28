@@ -5,6 +5,7 @@ import { db } from "../db/index.js";
 import { migrationsTable } from "../db/schema.js";
 import { logger } from "../logger.js";
 import { eq } from "drizzle-orm";
+import { notifyMigrationCompleted } from "../alerts/notifier.js";
 
 export async function processRetryable(job: Job<{ jobId: string; ticketId: string }>) {
   const { jobId, ticketId } = job.data;
@@ -46,6 +47,12 @@ export async function processRetryable(job: Job<{ jobId: string; ticketId: strin
 
   if (status === ParentToChildMessageStatus.REDEEMED) {
     logger.info({ jobId, ticketId, beneficiary: record.beneficiary }, "Migration SUCCESS! Retryable ticket redeemed and ETH delivered on Arbitrum One");
+
+    await notifyMigrationCompleted({
+      jobId,
+      ticketId,
+      beneficiary: record.beneficiary,
+    }).catch((err) => logger.warn({ err: err.message }, "Error sending migration completed alert"));
 
     await db
       .update(migrationsTable)

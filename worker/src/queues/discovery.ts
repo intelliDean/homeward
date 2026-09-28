@@ -7,6 +7,7 @@ import { migrationsTable } from "../db/schema.js";
 import { monitoringQueue } from "./queueManager.js";
 import { logger } from "../logger.js";
 import { eq } from "drizzle-orm";
+import { notifyJobDiscovered } from "../alerts/notifier.js";
 
 let lastScannedBlock: number | null = null;
 
@@ -79,6 +80,17 @@ export async function processDiscovery(): Promise<number> {
       );
 
       logger.info({ jobId, depositor, amount: ethers.formatEther(amount) }, "New migration job discovered and enqueued");
+
+      await notifyJobDiscovered({
+        jobId,
+        depositor,
+        beneficiary,
+        principalAmount: ethers.formatEther(amount),
+        maxDeductions: ethers.formatEther(maxDeductions),
+        executorReward: ethers.formatEther(executorReward),
+        txHash: event.transactionHash,
+      }).catch((err) => logger.warn({ err: err.message }, "Error sending job discovered alert"));
+
       newJobsCount++;
     }
   }
