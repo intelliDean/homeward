@@ -43,7 +43,7 @@ export async function processMonitoring(job: Job<{ jobId: string }>) {
 
   // Find message matching messagePosition or first message
   const msg = messages[0];
-  const status = await msg.status(l1Provider as any);
+  const status = await msg.status(novaProvider as any);
 
   if (status === ChildToParentMessageStatus.CONFIRMED) {
     logger.info({ jobId }, "Challenge period passed! Ready for L1 Outbox claim");

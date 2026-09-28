@@ -140,9 +140,9 @@ async function executeOutboxClaim(record: MigrationRecord): Promise<void> {
   if (messages.length === 0) throw new Error("No L2-to-L1 messages found");
   const msg = messages[0];
 
-  const status = await msg.status(l1Provider as any);
+  const status = await msg.status(novaProvider as any);
   if (status === ChildToParentMessageStatus.CONFIRMED) {
-    const claimTx = await (msg as any).execute(l1Provider as any);
+    const claimTx = await (msg as any).execute(workerL1Wallet as any);
     logger.info({ jobId: record.jobId, claimTxHash: claimTx.hash }, "Outbox claim transaction submitted. Waiting for confirmation");
     const claimReceipt = await claimTx.wait();
 
