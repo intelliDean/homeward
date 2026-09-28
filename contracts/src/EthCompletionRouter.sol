@@ -88,8 +88,14 @@ contract EthCompletionRouter is ReentrancyGuard {
     error EmergencyDelayNotMet(uint256 currentTimestamp, uint256 unlockTimestamp);
     error OnlyBeneficiaryOrDepositor();
     error TransferFailed();
+    error InvalidOutboxAddress();
+    error InvalidEntryContract();
+    error InvalidInboxAddress();
 
     constructor(address _novaOutbox, address _novaEntryContract, address _arbOneInbox) {
+        if (_novaOutbox == address(0)) revert InvalidOutboxAddress();
+        if (_novaEntryContract == address(0)) revert InvalidEntryContract();
+        if (_arbOneInbox == address(0)) revert InvalidInboxAddress();
         novaOutbox = _novaOutbox;
         novaEntryContract = _novaEntryContract;
         arbOneInbox = _arbOneInbox;
@@ -230,6 +236,7 @@ contract EthCompletionRouter is ReentrancyGuard {
      */
     function _compensateWorker(address payable worker, uint256 reward) internal {
         if (reward > 0) {
+            // slither-disable-next-line arbitrary-send-eth
             (bool success,) = worker.call{value: reward}("");
             if (!success) revert WorkerCompensationFailed();
         }
@@ -245,6 +252,7 @@ contract EthCompletionRouter is ReentrancyGuard {
         RetryableGasParams calldata gasParams
     ) internal returns (uint256 ticketId) {
         // SECURITY CRITICAL: Both excessFeeRefundAddress and callValueRefundAddress MUST be beneficiary!
+        // slither-disable-next-line arbitrary-send-eth
         ticketId = IInbox(arbOneInbox).createRetryableTicket{value: retryableGasCost + netDeliveryAmount}(
             beneficiary,
             netDeliveryAmount,
@@ -262,6 +270,7 @@ contract EthCompletionRouter is ReentrancyGuard {
      */
     function _validateEmergencyWithdrawal(Job storage job) internal view {
         uint256 unlockTime = job.receivedTimestamp + EMERGENCY_DELAY;
+        // slither-disable-next-line timestamp
         if (block.timestamp < unlockTime) {
             revert EmergencyDelayNotMet(block.timestamp, unlockTime);
         }

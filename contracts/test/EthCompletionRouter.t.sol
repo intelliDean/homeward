@@ -196,4 +196,15 @@ contract EthCompletionRouterTest is Test {
         vm.expectRevert(EthCompletionRouter.OnlyBeneficiaryOrDepositor.selector);
         router.emergencyWithdraw(sampleJobId);
     }
+
+    function test_RevertIf_Constructor_ZeroAddresses() public {
+        vm.expectRevert(EthCompletionRouter.InvalidOutboxAddress.selector);
+        new EthCompletionRouter(address(0), novaEntry, address(mockInbox));
+
+        vm.expectRevert(EthCompletionRouter.InvalidEntryContract.selector);
+        new EthCompletionRouter(address(mockOutbox), address(0), address(mockInbox));
+
+        vm.expectRevert(EthCompletionRouter.InvalidInboxAddress.selector);
+        new EthCompletionRouter(address(mockOutbox), novaEntry, address(0));
+    }
 }

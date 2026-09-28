@@ -85,6 +85,7 @@ contract NovaEntryContract is ReentrancyGuard {
             _buildReceivePayload(jobId, msg.sender, beneficiary, maxDeductions, executorReward, minDeliveryThreshold);
 
         // Initiate canonical bridge withdrawal to L1
+        // slither-disable-next-line reentrancy-benign,reentrancy-no-eth
         messagePosition = IArbSys(arbSys).sendTxToL1{value: msg.value}(ethCompletionRouter, payload);
 
         jobs[jobId] = MigrationJob({

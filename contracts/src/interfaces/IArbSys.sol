@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.0;
+pragma solidity 0.8.24;
 
 /// @notice Arbitrum ArbSys precompile at address(0x64)
 interface IArbSys {

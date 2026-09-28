@@ -17,7 +17,8 @@
     "docker:prod:logs": "docker compose -f docker-compose.prod.yml logs -f",
     "test:contracts": "forge test --root contracts",
     "test:worker": "npm --prefix worker test",
-    "test": "forge test --root contracts && npm --prefix worker test"
+    "test": "forge test --root contracts && npm --prefix worker test",
+    "slither": "cd contracts && slither ."
   },
   "devDependencies": {
     "dotenv": "^16.4.7",
