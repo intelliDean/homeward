@@ -1,9 +1,9 @@
 export const NOVA_ENTRY_ADDRESS = (
-  process.env.NEXT_PUBLIC_NOVA_ENTRY_CONTRACT || "0xcF7AC4DAfF8D8050362EaC01DcF1155797b99125"
+  process.env.NEXT_PUBLIC_NOVA_ENTRY_CONTRACT || "0x9BAa272667CD4c7e9b542BA97F5dAfbDb5aca32F"
 ) as `0x${string}`;
 
 export const ETH_ROUTER_ADDRESS = (
-  process.env.NEXT_PUBLIC_ETH_COMPLETION_ROUTER || "0xD062BB3F53A50f1372fEC398A5daad6DdDF06fee"
+  process.env.NEXT_PUBLIC_ETH_COMPLETION_ROUTER || "0x82f1399FC6a122E59888aBb4741008ADA7CC9088"
 ) as `0x${string}`;
 
 export function getNovaEntryAddress(chainId?: number): `0x${string}` {

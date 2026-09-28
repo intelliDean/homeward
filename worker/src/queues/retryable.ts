@@ -1,4 +1,4 @@
-import { Job } from "bullmq";
+import { Job, DelayedError } from "bullmq";
 import { ParentTransactionReceipt, ParentToChildMessageStatus } from "@arbitrum/sdk";
 import { l1Provider, arbOneProvider } from "../providers.js";
 import { db } from "../db/index.js";
@@ -65,8 +65,10 @@ export async function processRetryable(job: Job<{ jobId: string; ticketId: strin
     // Ticket deposited on L2, waiting for auto-redemption or manual redeem
     logger.info({ jobId }, "Funds deposited on child, awaiting execution. Retrying in 15 seconds");
     await job.moveToDelayed(Date.now() + 15000, job.token);
+    throw new DelayedError();
   } else {
     logger.info({ jobId, status }, "Ticket still in progress. Checking again shortly");
     await job.moveToDelayed(Date.now() + 15000, job.token);
+    throw new DelayedError();
   }
 }

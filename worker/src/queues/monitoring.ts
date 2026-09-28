@@ -1,4 +1,4 @@
-import { Job } from "bullmq";
+import { Job, DelayedError } from "bullmq";
 import { ethers } from "ethers";
 import { ChildTransactionReceipt, ChildToParentMessageStatus } from "@arbitrum/sdk";
 import { novaProvider, l1Provider } from "../providers.js";
@@ -79,5 +79,6 @@ export async function processMonitoring(job: Job<{ jobId: string }>) {
     logger.info({ jobId }, "Challenge window still active. Retrying later");
     // Reschedule in 1 minute
     await job.moveToDelayed(Date.now() + 60000, job.token);
+    throw new DelayedError();
   }
 }

@@ -1,4 +1,4 @@
-import { Job } from "bullmq";
+import { Job, DelayedError } from "bullmq";
 import { ethers } from "ethers";
 import { ChildTransactionReceipt, ChildToParentMessageStatus } from "@arbitrum/sdk";
 import { novaProvider, l1Provider, arbOneProvider, workerL1Wallet } from "../providers.js";
@@ -82,7 +82,7 @@ export async function processExecution(job: Job<{ jobId: string; outboxAlreadyCl
 
     // Delay and retry in 5 minutes
     await job.moveToDelayed(Date.now() + 300000, job.token);
-    return;
+    throw new DelayedError();
   }
 
   const router = new ethers.Contract(
