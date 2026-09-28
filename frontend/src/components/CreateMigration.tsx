@@ -6,7 +6,7 @@ import { parseEther, formatEther, isAddress } from "viem";
 import { ArrowRight, ShieldCheck, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { arbitrumNova, arbitrumSepolia } from "wagmi/chains";
 
-import { NOVA_ENTRY_ADDRESS, NovaEntryAbi } from "../config/contracts";
+import { getNovaEntryAddress, NovaEntryAbi } from "../config/contracts";
 
 interface CreateMigrationProps {
   onMigrationCreated: (jobId: string) => void;
@@ -64,7 +64,7 @@ export function CreateMigration({ onMigrationCreated }: CreateMigrationProps) {
 
     // Trigger on-chain call
     writeContract({
-      address: NOVA_ENTRY_ADDRESS,
+      address: getNovaEntryAddress(chain?.id),
       abi: NovaEntryAbi,
       functionName: "createMigration",
       args: [
@@ -217,13 +217,24 @@ export function CreateMigration({ onMigrationCreated }: CreateMigrationProps) {
             </p>
           </div>
         ) : !isNovaNetwork ? (
-          <button
-            id="switch-network-btn"
-            className="btn-primary"
-            onClick={() => switchChain({ chainId: arbitrumSepolia.id })}
-          >
-            Switch to Arbitrum Sepolia / Nova
-          </button>
+          <div style={{ display: "flex", gap: "10px", width: "100%" }}>
+            <button
+              id="switch-nova-btn"
+              className="btn-primary"
+              style={{ flex: 1 }}
+              onClick={() => switchChain({ chainId: arbitrumNova.id })}
+            >
+              Switch to Arbitrum Nova
+            </button>
+            <button
+              id="switch-sepolia-btn"
+              className="btn-secondary"
+              style={{ flex: 1 }}
+              onClick={() => switchChain({ chainId: arbitrumSepolia.id })}
+            >
+              Switch to Arb Sepolia (Testnet)
+            </button>
+          </div>
         ) : (
           <button
             id="initiate-migration-btn"

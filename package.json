@@ -5,6 +5,7 @@
   "description": "Homeward canonical ETH migration protocol from Arbitrum Nova to Arbitrum One",
   "scripts": {
     "deploy:testnet": "npx tsx scripts/deploy-testnet.ts",
+    "deploy:mainnet": "npx tsx scripts/deploy-mainnet.ts",
     "migration:test": "npx tsx scripts/test-migration.ts",
     "worker:dev": "npm --prefix worker run dev",
     "worker:start": "npm --prefix worker start",

@@ -13,14 +13,18 @@ remappings = [
 ]
 
 [rpc_endpoints]
-ethereum_sepolia = "${SEPOLIA_RPC_URL:-https://rpc.sepolia.org}"
-arbitrum_sepolia = "${ARB_SEPOLIA_RPC_URL:-https://sepolia-rollup.arbitrum.io/rpc}"
+ethereum_mainnet = "${L1_RPC_URL:-https://eth.llamarpc.com}"
 arbitrum_nova = "${NOVA_RPC_URL:-https://nova.arbitrum.io/rpc}"
-arbitrum_one = "${ONE_RPC_URL:-https://arb1.arbitrum.io/rpc}"
+arbitrum_one = "${ARB_ONE_RPC_URL:-https://arb1.arbitrum.io/rpc}"
+ethereum_sepolia = "${SEPOLIA_RPC_URL:-https://ethereum-sepolia-rpc.publicnode.com}"
+arbitrum_sepolia = "${ARB_SEPOLIA_RPC_URL:-https://sepolia-rollup.arbitrum.io/rpc}"
 
 [etherscan]
+mainnet = { key = "${ETHERSCAN_API_KEY}" }
+arbitrum_nova = { key = "${NOVA_ARBISCAN_API_KEY:-${ARBISCAN_API_KEY}}", url = "https://api-nova.arbiscan.io/api" }
+arbitrum_one = { key = "${ARBISCAN_API_KEY}" }
 sepolia = { key = "${ETHERSCAN_API_KEY}" }
-arbitrum_sepolia = { key = "${ETHERSCAN_API_KEY}", url = "https://api-sepolia.arbiscan.io/api" }
+arbitrum_sepolia = { key = "${ARBISCAN_API_KEY:-${ETHERSCAN_API_KEY}}", url = "https://api-sepolia.arbiscan.io/api" }
 
 [fmt]
 ignore = ["lib/**"]
