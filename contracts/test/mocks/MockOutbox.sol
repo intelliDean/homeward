@@ -5,6 +5,15 @@ import {IOutbox} from "../../src/interfaces/IOutbox.sol";
 
 contract MockOutbox is IOutbox {
     address public currentL2Sender;
+    address public bridgeAddress;
+
+    function setBridge(address _bridge) external {
+        bridgeAddress = _bridge;
+    }
+
+    function bridge() external view override returns (address) {
+        return bridgeAddress == address(0) ? address(this) : bridgeAddress;
+    }
 
     function setL2ToL1Sender(address sender) external {
         currentL2Sender = sender;

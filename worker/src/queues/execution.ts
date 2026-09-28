@@ -142,7 +142,7 @@ async function executeOutboxClaim(record: MigrationRecord): Promise<void> {
 
   const status = await msg.status(novaProvider as any);
   if (status === ChildToParentMessageStatus.CONFIRMED) {
-    const claimTx = await (msg as any).execute(workerL1Wallet as any);
+    const claimTx = await (msg as any).execute(novaProvider as any);
     logger.info({ jobId: record.jobId, claimTxHash: claimTx.hash }, "Outbox claim transaction submitted. Waiting for confirmation");
     const claimReceipt = await claimTx.wait();
 

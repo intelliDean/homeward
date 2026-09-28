@@ -192,10 +192,14 @@ contract EthCompletionRouter is ReentrancyGuard {
     }
 
     /**
-     * @dev Validates that the caller is the canonical Nova Outbox and the L2 sender matches.
+     * @dev Validates that the caller is the canonical Nova Outbox or its associated Bridge,
+     * and that the original L2 sender matches novaEntryContract.
      */
     function _verifyNovaOutboxCaller() internal view {
-        if (msg.sender != novaOutbox) revert OnlyNovaOutbox();
+        // In Arbitrum Nitro, the canonical Bridge contract holds the ETH and issues the low-level call,
+        // while the Outbox contract sets the execution context and verifies the Merkle inclusion proof.
+        address novaBridge = IOutbox(novaOutbox).bridge();
+        if (msg.sender != novaOutbox && msg.sender != novaBridge) revert OnlyNovaOutbox();
 
         address l2Sender = IOutbox(novaOutbox).l2ToL1Sender();
         if (l2Sender != novaEntryContract) {
