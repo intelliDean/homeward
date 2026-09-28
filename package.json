@@ -17,6 +17,7 @@
     "docker:prod:logs": "docker compose -f docker-compose.prod.yml logs -f",
     "test:contracts": "forge test --root contracts",
     "test:worker": "npm --prefix worker test",
+    "test:fork": "forge test --root contracts --match-path 'test/fork/*' -vvv",
     "test": "forge test --root contracts && npm --prefix worker test",
     "slither": "cd contracts && slither ."
   },

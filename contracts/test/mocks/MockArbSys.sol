@@ -13,7 +13,8 @@ contract MockArbSys is IArbSys {
         lastDestination = destination;
         lastData = data;
         lastValue = msg.value;
-        uint256 position = nextMessagePosition++;
+        uint256 position = nextMessagePosition == 0 ? 1 : nextMessagePosition;
+        nextMessagePosition = position + 1;
         return position;
     }
 

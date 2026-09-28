@@ -13,7 +13,7 @@ remappings = [
 ]
 
 [rpc_endpoints]
-ethereum_mainnet = "${L1_RPC_URL:-https://eth.llamarpc.com}"
+ethereum_mainnet = "${L1_RPC_URL:-https://ethereum.publicnode.com}"
 arbitrum_nova = "${NOVA_RPC_URL:-https://nova.arbitrum.io/rpc}"
 arbitrum_one = "${ARB_ONE_RPC_URL:-https://arb1.arbitrum.io/rpc}"
 ethereum_sepolia = "${SEPOLIA_RPC_URL:-https://ethereum-sepolia-rpc.publicnode.com}"

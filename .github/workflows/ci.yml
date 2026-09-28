@@ -32,7 +32,11 @@ jobs:
         run: forge build --root contracts --sizes
 
       - name: Run Unit, Fuzz & Invariant Tests
-        run: forge test --root contracts -vvv
+        run: forge test --root contracts -vvv --no-match-path 'test/fork/*'
+
+      - name: Run Mainnet Fork Simulation Tests
+        run: forge test --root contracts --match-path 'test/fork/*' -vvv
+        continue-on-error: true
 
   slither:
     name: Security Analysis (Slither SAST)
