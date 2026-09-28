@@ -166,8 +166,31 @@ The Arbitrum bridge mechanics (`ArbSys`, `Outbox`, `Inbox`, `ChildToParentMessag
 
 | Contract | Network | Address | Block Explorer |
 | :--- | :--- | :--- | :--- |
-| **`NovaEntryContract`** | Arbitrum Sepolia (L2) | `0xcF7AC4DAfF8D8050362EaC01DcF1155797b99125` | [Arbiscan](https://sepolia.arbiscan.io/address/0xcF7AC4DAfF8D8050362EaC01DcF1155797b99125) |
-| **`EthCompletionRouter`** | Ethereum Sepolia (L1) | `0xD062BB3F53A50f1372fEC398A5daad6DdDF06fee` | [Etherscan](https://sepolia.etherscan.io/address/0xD062BB3F53A50f1372fEC398A5daad6DdDF06fee) |
+| **`NovaEntryContract`** | Arbitrum Sepolia (L2) | `0x9BAa272667CD4c7e9b542BA97F5dAfbDb5aca32F` | [Arbiscan](https://sepolia.arbiscan.io/address/0x9BAa272667CD4c7e9b542BA97F5dAfbDb5aca32F) |
+| **`EthCompletionRouter`** | Ethereum Sepolia (L1) | `0x82f1399FC6a122E59888aBb4741008ADA7CC9088` | [Etherscan](https://sepolia.etherscan.io/address/0x82f1399FC6a122E59888aBb4741008ADA7CC9088) |
 | **`ArbSepolia Outbox`** | Ethereum Sepolia (L1) | `0x65f07C7D521164a4d5DaC6eB8Fac8DA067A3B78F` | [Etherscan](https://sepolia.etherscan.io/address/0x65f07C7D521164a4d5DaC6eB8Fac8DA067A3B78F) |
 | **`ArbSepolia Inbox`** | Ethereum Sepolia (L1) | `0xaAe29B0366299461418F5324a79Afc425BE5ae21` | [Etherscan](https://sepolia.etherscan.io/address/0xaAe29B0366299461418F5324a79Afc425BE5ae21) |
+
+### 🔍 Live Testnet Migration Proof
+
+| Parameter | On-Chain Value |
+| :--- | :--- |
+| **Origin Tx Hash** | [`0x27e12b06f3ab60d086a49a8d96a984a0f9910896a1e645f79a2c9ed8b4379e9c`](https://sepolia.arbiscan.io/tx/0x27e12b06f3ab60d086a49a8d96a984a0f9910896a1e645f79a2c9ed8b4379e9c) |
+| **Origin Block** | `313658828` |
+| **Job ID** | `0xb356ef91c7b7c4e0c9ad59d0ab621ebce731e4396242c6eed5651169d69d45ce` |
+| **Message Position** | `117994` |
+| **Principal Amount** | `0.0030 ETH` |
+| **Max Deductions** | `0.0010 ETH` |
+| **Executor Reward** | `0.0002 ETH` |
+| **Min Delivery** | `0.0018 ETH` |
+
+---
+
+## 🛡️ Security & Quality Assurance
+
+- **Slither Static Analysis**: 0 actionable findings across 7 contracts and 81 detectors (`npm run slither`).
+- **Foundry Invariant Tests**: 128,000 handler calls proving `address(router).balance == sum(jobBalances)` under arbitrary sequence manipulation.
+- **Mainnet & Nova Fork Simulation**: Real state execution against Ethereum Mainnet (`1`) and Arbitrum Nova (`42170`) canonical contracts (`npm run test:fork`).
+- **Automated CI/CD**: GitHub Actions workflow running tests and uploading `slither.sarif` to GitHub code scanning.
+- **Worker Alerting**: Multi-platform notification engine supporting Discord, Slack, Telegram, and generic JSON Webhooks.
 
