@@ -18,6 +18,10 @@ arbitrum_sepolia = "${ARB_SEPOLIA_RPC_URL:-https://sepolia-rollup.arbitrum.io/rp
 arbitrum_nova = "${NOVA_RPC_URL:-https://nova.arbitrum.io/rpc}"
 arbitrum_one = "${ONE_RPC_URL:-https://arb1.arbitrum.io/rpc}"
 
+[etherscan]
+sepolia = { key = "${ETHERSCAN_API_KEY}" }
+arbitrum_sepolia = { key = "${ETHERSCAN_API_KEY}", url = "https://api-sepolia.arbiscan.io/api" }
+
 [fmt]
 ignore = ["lib/**"]
 
