@@ -10,7 +10,7 @@ export const EthCompletionRouterAbi = [
   "event JobOverBudget(bytes32 indexed jobId, uint256 totalRequiredDeductions, uint256 maxAllowedDeductions)",
   "event EmergencyWithdrawalExecuted(bytes32 indexed jobId, address indexed recipient, uint256 amount)",
   "function receiveFromNova(bytes32 jobId, address depositor, address beneficiary, uint256 maxDeductions, uint256 executorReward, uint256 minDeliveryThreshold) external payable",
-  "function forwardJob(bytes32 jobId, tuple(uint256 maxSubmissionCost, uint256 gasLimit, uint256 maxFeePerGas) gasParams, uint256 workerReimbursement) external returns (uint256 ticketId)",
+  "function forwardJob(bytes32 jobId, tuple(uint256 maxSubmissionCost, uint256 gasLimit, uint256 maxFeePerGas) gasParams) external returns (uint256 ticketId)",
   "function emergencyWithdraw(bytes32 jobId) external",
   "function jobs(bytes32) external view returns (uint8 status, address depositor, address beneficiary, uint256 principalAmount, uint256 maxDeductions, uint256 executorReward, uint256 minDeliveryThreshold, uint256 receivedTimestamp)",
   "function jobBalances(bytes32) external view returns (uint256)"

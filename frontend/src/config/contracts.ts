@@ -1,23 +1,43 @@
-export const NOVA_ENTRY_ADDRESS = (
+// Testnet (Arbitrum Sepolia acting as Nova) contract addresses.
+// These are NEVER used on mainnet chains — see getNovaEntryAddress / getEthRouterAddress guards below.
+export const TESTNET_NOVA_ENTRY_ADDRESS = (
   process.env.NEXT_PUBLIC_NOVA_ENTRY_CONTRACT || "0x9BAa272667CD4c7e9b542BA97F5dAfbDb5aca32F"
 ) as `0x${string}`;
 
-export const ETH_ROUTER_ADDRESS = (
+export const TESTNET_ETH_ROUTER_ADDRESS = (
   process.env.NEXT_PUBLIC_ETH_COMPLETION_ROUTER || "0x82f1399FC6a122E59888aBb4741008ADA7CC9088"
 ) as `0x${string}`;
 
-export function getNovaEntryAddress(chainId?: number): `0x${string}` {
-  if (chainId === 42170 && process.env.NEXT_PUBLIC_MAINNET_NOVA_ENTRY_CONTRACT) {
-    return process.env.NEXT_PUBLIC_MAINNET_NOVA_ENTRY_CONTRACT as `0x${string}`;
+/**
+ * Returns the NovaEntryContract address for the given chain, or null when
+ * no mainnet contract is configured — preventing silent fallback to testnet addresses.
+ */
+export function getNovaEntryAddress(chainId?: number): `0x${string}` | null {
+  if (chainId === 42170) {
+    // Mainnet Arbitrum Nova — only proceed if explicitly configured
+    const addr = process.env.NEXT_PUBLIC_MAINNET_NOVA_ENTRY_CONTRACT;
+    return addr ? (addr as `0x${string}`) : null;
   }
-  return NOVA_ENTRY_ADDRESS;
+  if (chainId === 421614) {
+    // Arbitrum Sepolia testnet path
+    return TESTNET_NOVA_ENTRY_ADDRESS;
+  }
+  return null;
 }
 
-export function getEthRouterAddress(chainId?: number): `0x${string}` {
-  if (chainId === 1 && process.env.NEXT_PUBLIC_MAINNET_ETH_COMPLETION_ROUTER) {
-    return process.env.NEXT_PUBLIC_MAINNET_ETH_COMPLETION_ROUTER as `0x${string}`;
+/**
+ * Returns the EthCompletionRouter address for the given L1 chain, or null
+ * when no mainnet address is configured.
+ */
+export function getEthRouterAddress(chainId?: number): `0x${string}` | null {
+  if (chainId === 1) {
+    const addr = process.env.NEXT_PUBLIC_MAINNET_ETH_COMPLETION_ROUTER;
+    return addr ? (addr as `0x${string}`) : null;
   }
-  return ETH_ROUTER_ADDRESS;
+  if (chainId === 11155111) {
+    return TESTNET_ETH_ROUTER_ADDRESS;
+  }
+  return null;
 }
 
 export const NovaEntryAbi = [
@@ -60,7 +80,6 @@ export const EthRouterAbi = [
           { name: "maxFeePerGas", type: "uint256" },
         ],
       },
-      { name: "workerReimbursement", type: "uint256" },
     ],
     outputs: [{ name: "ticketId", type: "uint256" }],
     stateMutability: "nonpayable",

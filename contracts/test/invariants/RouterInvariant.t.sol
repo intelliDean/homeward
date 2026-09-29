@@ -32,11 +32,10 @@ contract RouterHandler is Test {
         bytes32 jobId = keccak256(abi.encode(jobIds.length, block.timestamp));
         jobIds.push(jobId);
 
+        address participant = address(0x1111); // MVP: depositor == beneficiary
         outbox.setL2ToL1Sender(novaEntry);
         vm.prank(address(outbox));
-        router.receiveFromNova{value: amount}(
-            jobId, address(0x1111), address(0x2222), maxDeductions, reward, minDelivery
-        );
+        router.receiveFromNova{value: amount}(jobId, participant, participant, maxDeductions, reward, minDelivery);
 
         totalTrackedPrincipal += amount;
     }
@@ -46,7 +45,8 @@ contract RouterHandler is Test {
         jobIndex = jobIndex % jobIds.length;
         bytes32 jobId = jobIds[jobIndex];
 
-        (EthCompletionRouter.JobStatus status,,, uint256 principal, uint256 maxDeductions,,,) = router.jobs(jobId);
+        (EthCompletionRouter.JobStatus status,,, uint256 principal, uint256 maxDeductions, uint256 executorReward,,) =
+            router.jobs(jobId);
         if (status != EthCompletionRouter.JobStatus.Received) return;
 
         gasPrice = bound(gasPrice, 1 gwei, 50 gwei);
@@ -55,12 +55,13 @@ contract RouterHandler is Test {
         });
 
         uint256 retryableCost = gasParams.maxSubmissionCost + (gasParams.gasLimit * gasParams.maxFeePerGas);
-        if (retryableCost + 0.005 ether > maxDeductions) return;
+        // Skip if retryable cost + executor reward already exceeds the cap
+        if (retryableCost + executorReward > maxDeductions) return;
 
         address worker = address(0x9999);
         vm.deal(worker, 1 ether);
         vm.prank(worker);
-        try router.forwardJob(jobId, gasParams, 0.001 ether) {
+        try router.forwardJob(jobId, gasParams) {
             totalTrackedPrincipal -= principal;
         } catch {}
     }

@@ -49,22 +49,32 @@ export function CreateMigration({ onMigrationCreated }: CreateMigrationProps) {
   const minDeliveryThreshold = parsedAmount > parsedMaxDeductions ? parsedAmount - parsedMaxDeductions : 0n;
 
   const isNovaNetwork = chain?.id === arbitrumNova.id || chain?.id === arbitrumSepolia.id;
+  const contractAddress = isNovaNetwork ? getNovaEntryAddress(chain?.id) : null;
+  const isMainnetNovaUnconfigured = chain?.id === arbitrumNova.id && contractAddress === null;
   const isValidBeneficiary = isAddress(beneficiary);
+  // MVP constraint: beneficiary must be the connected wallet address
+  const isBeneficiaryOwnWallet = address ? beneficiary.toLowerCase() === address.toLowerCase() : false;
   const isValidAmount = parsedAmount > 0n && parsedAmount > parsedMaxDeductions;
   const isValidCaps = parsedExecutorReward <= parsedMaxDeductions && parsedMaxDeductions > 0n;
-  const canSubmit = isConnected && isValidBeneficiary && isValidAmount && isValidCaps && !isPending && !isWaitingReceipt;
+  const canSubmit =
+    isConnected &&
+    isValidBeneficiary &&
+    isBeneficiaryOwnWallet &&
+    isValidAmount &&
+    isValidCaps &&
+    !isPending &&
+    !isWaitingReceipt &&
+    contractAddress !== null;
 
   const handleInitiate = async () => {
     if (!isNovaNetwork) {
       switchChain({ chainId: arbitrumSepolia.id });
       return;
     }
+    if (!canSubmit || !contractAddress) return;
 
-    if (!canSubmit) return;
-
-    // Trigger on-chain call
     writeContract({
-      address: getNovaEntryAddress(chain?.id),
+      address: contractAddress,
       abi: NovaEntryAbi,
       functionName: "createMigration",
       args: [
@@ -156,8 +166,13 @@ export function CreateMigration({ onMigrationCreated }: CreateMigrationProps) {
             />
           </div>
           <p style={{ fontSize: "12px", color: "var(--text-dim)", marginTop: "6px" }}>
-            Canonical retryable ticket will deliver funds directly to this address on Arbitrum One.
+            For this MVP, the beneficiary must be your connected wallet address (same wallet on Arbitrum One).
           </p>
+          {!isBeneficiaryOwnWallet && isAddress(beneficiary) && (
+            <p style={{ fontSize: "12px", color: "#f87171", marginTop: "4px" }}>
+              ⚠ Only same-wallet migrations are supported — beneficiary must match your connected address.
+            </p>
+          )}
         </div>
 
         {/* Gas & Fee Deductions Breakdown */}
@@ -234,6 +249,11 @@ export function CreateMigration({ onMigrationCreated }: CreateMigrationProps) {
             >
               Switch to Arb Sepolia (Testnet)
             </button>
+          </div>
+        ) : isMainnetNovaUnconfigured ? (
+          <div style={{ display: "flex", gap: "10px", background: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "10px", padding: "14px", marginBottom: "20px", color: "#f87171", fontSize: "13px" }}>
+            <AlertCircle size={18} style={{ flexShrink: 0 }} />
+            <span>Mainnet deposits are not yet enabled. No mainnet contract address is configured — connect to Arbitrum Sepolia to use the testnet.</span>
           </div>
         ) : (
           <button

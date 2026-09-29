@@ -131,7 +131,7 @@ contract MainnetForkTest is Test {
 
         bytes32 jobId = keccak256("mainnet-fork-test-job");
         uint256 principal = 1 ether;
-        uint256 maxDeductions = 0.05 ether;
+        uint256 maxDeductions = 0.04 ether; // retryable(0.015) + execReward(0.01) + reimb(0.015) = 0.04
         uint256 executorReward = 0.01 ether;
         uint256 minDelivery = 0.9 ether;
 
@@ -142,29 +142,28 @@ contract MainnetForkTest is Test {
             MAINNET_NOVA_OUTBOX, abi.encodeWithSelector(IOutbox.l2ToL1Sender.selector), abi.encode(simulatedL2Entry)
         );
 
+        // MVP: beneficiary == depositor
         vm.prank(MAINNET_NOVA_OUTBOX);
         router.receiveFromNova{value: principal}(
-            jobId, depositor, beneficiary, maxDeductions, executorReward, minDelivery
+            jobId, depositor, depositor, maxDeductions, executorReward, minDelivery
         );
 
         assertEq(router.jobBalances(jobId), principal);
 
         // Worker execution: forward job to real Arbitrum One Inbox
+        // retryableCost = 0.005 + (100_000 * 100 gwei) = 0.005 + 0.01 = 0.015 ether
+        // workerReimbursement (derived) = 0.04 - 0.01 - 0.015 = 0.015 ether
+        // totalWorkerReward = 0.015 + 0.01 = 0.025 ether (== maxDeductions - retryableCost)
+        // netDelivery = 1 - 0.04 = 0.96 ether >= 0.9 ether minDelivery
         EthCompletionRouter.RetryableGasParams memory gasParams = EthCompletionRouter.RetryableGasParams({
-            maxSubmissionCost: 0.005 ether,
-            gasLimit: 100_000,
-            maxFeePerGas: 100 gwei // 0.01 ether -> total retryable gas cost = 0.015 ether
+            maxSubmissionCost: 0.005 ether, gasLimit: 100_000, maxFeePerGas: 100 gwei
         });
-        uint256 workerReimbursement = 0.005 ether;
-        // Total worker reward = 0.005 + 0.01 (executorReward) = 0.015 ether
-        // Total deductions = 0.015 + 0.015 = 0.03 ether <= 0.05 ether maxDeductions
-        // Net delivery = 1 - 0.03 = 0.97 ether >= 0.9 ether minDelivery
 
         vm.deal(worker, 1 ether);
         uint256 workerBalBefore = worker.balance;
 
         vm.prank(worker);
-        uint256 ticketId = router.forwardJob(jobId, gasParams, workerReimbursement);
+        uint256 ticketId = router.forwardJob(jobId, gasParams);
 
         // Verify ticket was created by the real Arbitrum One Inbox
         assertTrue(ticketId > 0, "Real Arbitrum One Inbox must return valid retryable ticket ID");
@@ -172,7 +171,7 @@ contract MainnetForkTest is Test {
         // Verify state updates & worker compensation
         assertEq(router.jobBalances(jobId), 0, "Job balance must be 0 after forwarding");
         assertEq(
-            worker.balance - workerBalBefore, 0.015 ether, "Worker must receive reimbursement plus executor reward"
+            worker.balance - workerBalBefore, 0.025 ether, "Worker must receive reimbursement plus executor reward"
         );
 
         (EthCompletionRouter.JobStatus status,,,,,,,) = router.jobs(jobId);
@@ -281,23 +280,26 @@ contract MainnetForkTest is Test {
             MAINNET_NOVA_OUTBOX, abi.encodeWithSelector(IOutbox.l2ToL1Sender.selector), abi.encode(simulatedL2Entry)
         );
 
+        // MVP: beneficiary == depositor
         vm.prank(MAINNET_NOVA_OUTBOX);
         router.receiveFromNova{value: principal}(
-            jobId, depositor, beneficiary, maxDeductions, executorReward, minDelivery
+            jobId, depositor, depositor, maxDeductions, executorReward, minDelivery
         );
 
-        // Worker attempts deductions = 0.02 (retryable) + 0.01 (executorReward) + 0.01 (reimbursement) = 0.04 > 0.03
+        // retryableCost = 0.025 + (100_000 * 100 gwei) = 0.025 + 0.01 = 0.035 ether
+        // retryableAndReward = 0.035 + 0.01 = 0.045 ether > 0.03 ether maxDeductions => revert
         EthCompletionRouter.RetryableGasParams memory gasParams = EthCompletionRouter.RetryableGasParams({
-            maxSubmissionCost: 0.01 ether,
-            gasLimit: 100_000,
-            maxFeePerGas: 100 gwei // 0.01 ether -> retryable cost = 0.02 ether
+            maxSubmissionCost: 0.025 ether, gasLimit: 100_000, maxFeePerGas: 100 gwei
         });
-        uint256 workerReimbursement = 0.01 ether;
 
         vm.prank(worker);
         vm.expectRevert(
-            abi.encodeWithSelector(EthCompletionRouter.ExceedsMaxDeductions.selector, 0.04 ether, 0.03 ether)
+            abi.encodeWithSelector(
+                EthCompletionRouter.ExceedsMaxDeductions.selector,
+                0.035 ether + executorReward, // retryableAndReward = 0.045 ether
+                maxDeductions
+            )
         );
-        router.forwardJob(jobId, gasParams, workerReimbursement);
+        router.forwardJob(jobId, gasParams);
     }
 }

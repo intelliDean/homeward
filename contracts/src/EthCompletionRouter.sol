@@ -91,6 +91,8 @@ contract EthCompletionRouter is ReentrancyGuard {
     error InvalidOutboxAddress();
     error InvalidEntryContract();
     error InvalidInboxAddress();
+    /// @notice Emitted when beneficiary != depositor (MVP same-wallet constraint)
+    error BeneficiaryMustBeDepositor();
 
     constructor(address _novaOutbox, address _novaEntryContract, address _arbOneInbox) {
         if (_novaOutbox == address(0)) revert InvalidOutboxAddress();
@@ -117,6 +119,9 @@ contract EthCompletionRouter is ReentrancyGuard {
 
         if (jobs[jobId].status != JobStatus.None) revert JobAlreadyExists(jobId);
 
+        // MVP: same-wallet migrations only
+        if (beneficiary != depositor) revert BeneficiaryMustBeDepositor();
+
         jobs[jobId] = Job({
             status: JobStatus.Received,
             depositor: depositor,
@@ -137,13 +142,15 @@ contract EthCompletionRouter is ReentrancyGuard {
 
     /**
      * @notice Completes the migration by dispatching a retryable ticket to Arbitrum One.
-     * Reimburses worker gas costs + executor reward, and sends remainder to beneficiary on Arb One.
+     * Reimburses worker gas costs strictly from the job's signed caps, and sends remainder to beneficiary.
      *
      * @param jobId The unique migration ID
      * @param gasParams Struct containing maxSubmissionCost, gasLimit, and maxFeePerGas
-     * @param workerReimbursement Gas reimbursement claimed by worker for L1 execution
+     *
+     * @dev workerReimbursement is derived onchain: maxDeductions - executorReward - retryableGasCost.
+     *      The executor supplies only the gas params; the contract enforces the approved caps.
      */
-    function forwardJob(bytes32 jobId, RetryableGasParams calldata gasParams, uint256 workerReimbursement)
+    function forwardJob(bytes32 jobId, RetryableGasParams calldata gasParams)
         external
         nonReentrant
         returns (uint256 ticketId)
@@ -152,7 +159,7 @@ contract EthCompletionRouter is ReentrancyGuard {
         if (job.status != JobStatus.Received) revert JobNotReceived(jobId);
 
         (uint256 retryableGasCost, uint256 totalWorkerReward, uint256 netDeliveryAmount) =
-            _validateAndCalculateDeductions(jobId, job, gasParams, workerReimbursement);
+            _validateAndCalculateDeductions(jobId, job, gasParams);
 
         address beneficiary = job.beneficiary;
 
@@ -208,23 +215,27 @@ contract EthCompletionRouter is ReentrancyGuard {
     }
 
     /**
-     * @dev Validates gas costs against signed caps and calculates distribution amounts.
+     * @dev Validates gas costs against the job's stored caps and calculates distribution amounts.
+     *      Worker reimbursement is derived as the remaining cap after retryable cost and executor reward.
+     *      This prevents the executor from supplying an arbitrary reimbursement value.
      */
-    function _validateAndCalculateDeductions(
-        bytes32 jobId,
-        Job storage job,
-        RetryableGasParams calldata gasParams,
-        uint256 workerReimbursement
-    ) internal returns (uint256 retryableGasCost, uint256 totalWorkerReward, uint256 netDeliveryAmount) {
+    function _validateAndCalculateDeductions(bytes32 jobId, Job storage job, RetryableGasParams calldata gasParams)
+        internal
+        returns (uint256 retryableGasCost, uint256 totalWorkerReward, uint256 netDeliveryAmount)
+    {
         retryableGasCost = gasParams.maxSubmissionCost + (gasParams.gasLimit * gasParams.maxFeePerGas);
+
+        // Derive worker reimbursement from the cap: whatever is left after retryable cost and executor reward
+        uint256 retryableAndReward = retryableGasCost + job.executorReward;
+        if (retryableAndReward > job.maxDeductions) {
+            emit JobOverBudget(jobId, retryableAndReward, job.maxDeductions);
+            revert ExceedsMaxDeductions(retryableAndReward, job.maxDeductions);
+        }
+        uint256 workerReimbursement = job.maxDeductions - retryableAndReward;
         totalWorkerReward = workerReimbursement + job.executorReward;
         uint256 totalDeductions = totalWorkerReward + retryableGasCost;
 
-        if (totalDeductions > job.maxDeductions) {
-            emit JobOverBudget(jobId, totalDeductions, job.maxDeductions);
-            revert ExceedsMaxDeductions(totalDeductions, job.maxDeductions);
-        }
-
+        // totalDeductions == job.maxDeductions by construction; guard against underflow only
         if (totalDeductions >= job.principalAmount) {
             revert ExceedsMaxDeductions(totalDeductions, job.principalAmount);
         }

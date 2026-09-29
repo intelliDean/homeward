@@ -18,10 +18,11 @@ export interface GasCalculationResult {
     maxFeePerGas: bigint;
   };
   retryableGasCost: bigint;
-  workerReimbursement: bigint;
-  totalDeductions: bigint;
+  executorReward: bigint;
+  workerReimbursement: bigint; // derived: maxDeductions - executorReward - retryableGasCost
+  totalDeductions: bigint;     // always === maxDeductions when not over budget
   maxDeductions: bigint;
-  isOverBudget: boolean;
+  isOverBudget: boolean;       // true when retryableCost alone > maxDeductions - executorReward
 }
 
 export async function processExecution(job: Job<{ jobId: string; outboxAlreadyClaimed?: boolean }>) {
@@ -40,6 +41,13 @@ export async function processExecution(job: Job<{ jobId: string; outboxAlreadyCl
 
   const record = records[0];
 
+  // Crash recovery: if we already submitted forwardJob before the crash, recover from on-chain events
+  if (record.forwardTxHash) {
+    logger.info({ jobId, forwardTxHash: record.forwardTxHash }, "Forward tx already on-chain — recovering ticketId from events");
+    await recoverForwardedJob(record);
+    return;
+  }
+
   // 1. Submit Outbox claim on L1 if not already claimed
   if (!outboxAlreadyClaimed && !record.outboxClaimTxHash) {
     await executeOutboxClaim(record);
@@ -52,10 +60,9 @@ export async function processExecution(job: Job<{ jobId: string; outboxAlreadyCl
 
   logger.info({
     jobId,
-    totalDeductions: ethers.formatEther(calc.totalDeductions),
-    maxDeductions: ethers.formatEther(calc.maxDeductions),
-    workerReimbursement: ethers.formatEther(calc.workerReimbursement),
     retryableGasCost: ethers.formatEther(calc.retryableGasCost),
+    maxDeductions: ethers.formatEther(calc.maxDeductions),
+    executorReward: ethers.formatEther(calc.executorReward),
   }, "Fee calculation comparison");
 
   if (calc.isOverBudget) {
@@ -91,7 +98,7 @@ export async function processExecution(job: Job<{ jobId: string; outboxAlreadyCl
     workerL1Wallet
   );
 
-  const forwardReceipt = await submitForwardTransaction(router, jobId, calc.gasParams, calc.workerReimbursement);
+  const forwardReceipt = await submitForwardTransaction(router, jobId, calc.gasParams);
   const ticketId = extractTicketId(forwardReceipt, router.interface);
 
   await db
@@ -111,8 +118,10 @@ export async function processExecution(job: Job<{ jobId: string; outboxAlreadyCl
     { jobId: `retryable-${jobId}` }
   );
 
-  const netDelivery = ethers.formatEther(BigInt(record.principalAmount) - calc.totalDeductions);
-  const workerReward = ethers.formatEther(calc.workerReimbursement + BigInt(record.executorReward));
+  const netDelivery = ethers.formatEther(
+    BigInt(record.principalAmount) - BigInt(record.maxDeductions)
+  );
+  const workerReward = ethers.formatEther(BigInt(record.maxDeductions));
 
   await notifyJobForwarded({
     jobId,
@@ -123,6 +132,42 @@ export async function processExecution(job: Job<{ jobId: string; outboxAlreadyCl
   }).catch((err) => logger.warn({ err: err.message }, "Error sending job forwarded alert"));
 
   logger.info({ jobId, ticketId, forwardTxHash: forwardReceipt.hash }, "Job successfully forwarded and retryable queued");
+}
+
+/**
+ * Issue 3 — Crash recovery: when the worker restarts and finds a forwardTxHash already in the DB,
+ * it reads the JobForwarded event from the completed L1 transaction to get the ticketId,
+ * then enqueues retryable tracking. Re-forwarding would revert with JobNotReceived.
+ */
+async function recoverForwardedJob(record: MigrationRecord): Promise<void> {
+  const { jobId, forwardTxHash } = record;
+  if (!forwardTxHash) return;
+
+  const router = new ethers.Contract(config.ETH_COMPLETION_ROUTER, EthCompletionRouterAbi, workerL1Wallet);
+  const receipt = await l1Provider.getTransactionReceipt(forwardTxHash);
+
+  if (!receipt) {
+    // Transaction still pending — do not re-forward; throw to retry later
+    throw new Error(`Forward tx ${forwardTxHash} not yet mined. Will retry.`);
+  }
+
+  const ticketId = extractTicketId(receipt as ethers.ContractTransactionReceipt, router.interface);
+
+  if (ticketId) {
+    await db
+      .update(migrationsTable)
+      .set({ retryableTicketId: ticketId, status: "TRACKING_RETRYABLE", errorMessage: null, updatedAt: new Date() })
+      .where(eq(migrationsTable.jobId, jobId));
+
+    await retryableQueue.add("track-retryable", { jobId, ticketId }, { jobId: `retryable-${jobId}` });
+    logger.info({ jobId, ticketId }, "Crash recovery: ticketId recovered from on-chain events, retryable enqueued");
+  } else {
+    logger.warn({ jobId, forwardTxHash }, "Crash recovery: forward tx mined but no JobForwarded event found. Check contract logs.");
+    await db
+      .update(migrationsTable)
+      .set({ status: "TRACKING_RETRYABLE", errorMessage: "Recovered post-crash: ticketId not found in logs", updatedAt: new Date() })
+      .where(eq(migrationsTable.jobId, jobId));
+  }
 }
 
 /**
@@ -158,54 +203,51 @@ async function executeOutboxClaim(record: MigrationRecord): Promise<void> {
 }
 
 /**
- * Computes dynamic gas parameters and compares against user's maxDeductions cap.
+ * Computes dynamic retryable gas parameters and checks whether the retryable cost
+ * fits within the user's cap (after reserving the executor reward).
+ * Worker reimbursement is now derived by the contract, but we compute it here for
+ * logging purposes: maxDeductions - executorReward - retryableGasCost.
  */
 async function calculateGasAndDeductions(record: MigrationRecord): Promise<GasCalculationResult> {
-  const feeData = await l1Provider.getFeeData();
-  const l1GasPrice = feeData.gasPrice || ethers.parseUnits("30", "gwei");
-
   const arbFeeData = await arbOneProvider.getFeeData();
   const arbGasPrice = arbFeeData.gasPrice || ethers.parseUnits("0.1", "gwei");
 
-  const gasLimit = 100_000n; // Standard ETH transfer gas on Arbitrum
+  const gasLimit = 100_000n;
   const maxFeePerGas = (arbGasPrice * 120n) / 100n; // 20% buffer
-  const maxSubmissionCost = ethers.parseEther("0.0005"); // Base submission cost buffer
+  const maxSubmissionCost = ethers.parseEther("0.0005");
   const retryableGasCost = maxSubmissionCost + (gasLimit * maxFeePerGas);
 
-  const estimatedL1GasUnits = 200_000n;
-  const workerReimbursement = estimatedL1GasUnits * l1GasPrice;
   const executorReward = BigInt(record.executorReward);
   const maxDeductions = BigInt(record.maxDeductions);
 
-  const totalDeductions = workerReimbursement + executorReward + retryableGasCost;
+  // isOverBudget when retryable cost alone exceeds the remaining cap after executor reward
+  const isOverBudget = retryableGasCost + executorReward > maxDeductions;
+  const workerReimbursement = isOverBudget ? 0n : maxDeductions - executorReward - retryableGasCost;
+  const totalDeductions = maxDeductions; // contract always deducts exactly maxDeductions
 
   return {
-    gasParams: {
-      maxSubmissionCost,
-      gasLimit,
-      maxFeePerGas,
-    },
+    gasParams: { maxSubmissionCost, gasLimit, maxFeePerGas },
     retryableGasCost,
+    executorReward,
     workerReimbursement,
     totalDeductions,
     maxDeductions,
-    isOverBudget: totalDeductions > maxDeductions,
+    isOverBudget,
   };
 }
 
 /**
  * Submits the forwardJob transaction to EthCompletionRouter on Ethereum L1.
+ * workerReimbursement is no longer a parameter — the contract derives it from the cap.
  */
 async function submitForwardTransaction(
   router: ethers.Contract,
   jobId: string,
-  gasParams: { maxSubmissionCost: bigint; gasLimit: bigint; maxFeePerGas: bigint },
-  workerReimbursement: bigint
+  gasParams: { maxSubmissionCost: bigint; gasLimit: bigint; maxFeePerGas: bigint }
 ): Promise<ethers.ContractTransactionReceipt> {
   logger.info({ jobId }, "Submitting forwardJob to EthCompletionRouter");
-  const forwardTx = await router.forwardJob(jobId, gasParams, workerReimbursement);
-
-  logger.info({ jobId, txHash: forwardTx.hash }, "forwardJob transaction submitted. Waiting for confirmation");
+  const forwardTx = await router.forwardJob(jobId, gasParams);
+  logger.info({ jobId, txHash: forwardTx.hash }, "forwardJob submitted. Waiting for confirmation");
   return await forwardTx.wait();
 }
 
