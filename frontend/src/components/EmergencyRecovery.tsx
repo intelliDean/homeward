@@ -5,7 +5,7 @@ import { useAccount, useWriteContract, useSwitchChain } from "wagmi";
 import { ShieldAlert, AlertTriangle, ArrowRight, CheckCircle2, RefreshCw } from "lucide-react";
 import { sepolia, mainnet } from "wagmi/chains";
 
-import { ETH_ROUTER_ADDRESS, EthRouterAbi } from "../config/contracts";
+import { getEthRouterAddress, EthRouterAbi } from "../config/contracts";
 
 export function EmergencyRecovery() {
   const { isConnected, chain } = useAccount();
@@ -16,9 +16,15 @@ export function EmergencyRecovery() {
   const { writeContract, isPending, error, isSuccess } = useWriteContract();
 
   const isL1 = chain?.id === sepolia.id || chain?.id === mainnet.id;
+  const routerAddress = isL1 ? getEthRouterAddress(chain?.id) : null;
+  const isMainnetEthUnconfigured = chain?.id === mainnet.id && routerAddress === null;
 
   const handleAction = () => {
-    if (!isL1) {
+    if (!isL1 || !routerAddress) {
+      if (isMainnetEthUnconfigured) {
+        alert("Ethereum Mainnet router is not yet deployed. Please connect to Ethereum Sepolia for testnet.");
+        return;
+      }
       switchChain({ chainId: sepolia.id });
       return;
     }
@@ -30,14 +36,14 @@ export function EmergencyRecovery() {
 
     if (actionType === "emergency") {
       writeContract({
-        address: ETH_ROUTER_ADDRESS,
+        address: routerAddress,
         abi: EthRouterAbi,
         functionName: "emergencyWithdraw",
         args: [jobId as `0x${string}`],
       });
     } else {
       writeContract({
-        address: ETH_ROUTER_ADDRESS,
+        address: routerAddress,
         abi: EthRouterAbi,
         functionName: "forwardJob",
         args: [
@@ -47,7 +53,6 @@ export function EmergencyRecovery() {
             gasLimit: 100000n,
             maxFeePerGas: 200000000n, // 0.2 gwei
           },
-          0n, // 0 reimbursement for self-recovery
         ],
       });
     }
@@ -128,6 +133,12 @@ export function EmergencyRecovery() {
           </div>
         )}
 
+        {isMainnetEthUnconfigured && (
+          <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "10px", padding: "12px", marginBottom: "20px", color: "#f87171", fontSize: "13px" }}>
+            Ethereum Mainnet router contract is not configured. Self-service recovery is currently active on Ethereum Sepolia testnet only.
+          </div>
+        )}
+
         {/* Submit */}
         {!isConnected ? (
           <p style={{ color: "var(--text-muted)", fontSize: "14px", textAlign: "center" }}>
@@ -145,7 +156,7 @@ export function EmergencyRecovery() {
           <button
             id="execute-recovery-btn"
             className="btn-primary"
-            disabled={isPending || !jobId}
+            disabled={isPending || !jobId || !routerAddress}
             onClick={handleAction}
           >
             {isPending ? (
